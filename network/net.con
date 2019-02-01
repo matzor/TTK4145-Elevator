@@ -1,0 +1,10 @@
+net.con
+
+--net_peer_port                             19667
+--net_peer_timeout                          350
+--net_peer_interval                         100
+--net_peer_id                               default
+
+--net_bcast_port                            19668
+--net_bcast_bufSize                         1024
+--net_bcast_recvFromSelf			1
