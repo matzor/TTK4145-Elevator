@@ -24,10 +24,6 @@ private __gshared Duration      timeout;
 private __gshared string        id_str          = "default";
 private __gshared ubyte         _id;
 
-struct AliveMsg {
-    string  ip;
-}
-
 ubyte id(){
     return _id;
 }
@@ -70,29 +66,17 @@ void network_init(){
                 .to!ubyte;
         } else {
             _id = id_str.to!ubyte;
-}
+        }
+        writeln("Network init complete");
 
     } catch(Exception e){
         writeln("Unable to load net_bcast config:\n", e.msg);
     }
 }
 
-Socket UDP_init(ushort portNumber){
-  Socket server = new UdpSocket();
-  server.bind(new InternetAddress(portNumber));
-  return server;
-}
-
 void broadcast_tx(){
     scope(exit) writeln(__FUNCTION__, " died");
     try {
-    /*
-    auto addr = new InternetAddress(11111);
-    auto hostName = addr.toHostNameString;
-    auto serverip = getAddress(hostName)[1].toString;
-    serverip= serverip[0 .. serverip.length - 2]; //removes ':0', can this be done more elegant?
-    writeln(serverip);
-    */
 
     auto    addr                    = new InternetAddress("255.255.255.255", broadcastport);
     auto    sock                    = new UdpSocket();
@@ -102,6 +86,7 @@ void broadcast_tx(){
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
 
     bool txEnable = true;
+    writeln("Ready to broadcast on port ", broadcastport);
     writeln("Broadcasting id: ", buf);
     while(true){
         receiveTimeout(interval,
@@ -118,18 +103,21 @@ void broadcast_tx(){
 
 void broadcast_rx(){
     scope(exit) writeln(__FUNCTION__, " died");
-     try {
+    try {
 
-    auto sock = UDP_init(broadcastport);
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-    sock.Socket.setOption(SocketOptionLevel.SOCKET,
-    SocketOption.RCVTIMEO, timeout);   //sets timeout on receive
+    auto    addr                    = new InternetAddress(broadcastport);
+    auto    sock                    = new UdpSocket();
 
     ubyte[1]            buf;
     SysTime[ubyte]      lastSeen;
     bool                listHasChanges;
 
+    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
+    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
+    sock.Socket.setOption(SocketOptionLevel.SOCKET,
+    SocketOption.RCVTIMEO, timeout);   //sets timeout on receive
+
+    sock.bind(addr);
     writeln("Ready to listen on port ", broadcastport);
 
     while(true){
@@ -143,7 +131,7 @@ void broadcast_rx(){
                 listHasChanges = true;
             }
             lastSeen[buf[0]] = Clock.currTime;
-            writeln("Found peer ", buf[0]);
+            //writeln("Found peer ", buf[0]);
         }
 
         foreach(k, v; lastSeen){
@@ -163,12 +151,10 @@ void broadcast_rx(){
 }
 
 
-void heartBeatMonitor(string ip){}
-
 void networkMain(){
     network_init();
-    auto broadcastThread = spawn(&broadcast_tx);
-
+    auto broadcastTxThread = spawn(&broadcast_tx);
+    auto broadcastRxThread = spawn(&broadcast_rx);
     while(true){
         receive(
             (PeerList p){
