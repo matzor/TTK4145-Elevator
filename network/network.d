@@ -155,7 +155,7 @@ void broadcast_rx(){
         }
 
         if(listHasChanges){
-            writeln("Peerlist changed!")
+            writeln("Peerlist changed!");
             ownerTid.send(PeerList(lastSeen.keys.idup));
         }
     }
