@@ -19,7 +19,7 @@ private __gshared size_t        bufSize         = 1024;
 private __gshared int           recvFromSelf    = 0;
 private __gshared int           interval_ms     = 100;
 private __gshared Duration      interval;
-private __gshared int           timeout_ms      = 350;
+private __gshared int           timeout_ms      = 550;
 private __gshared Duration      timeout;
 private __gshared string        id_str          = "default";
 private __gshared ubyte         _id;
