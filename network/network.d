@@ -143,16 +143,19 @@ void broadcast_rx(){
                 listHasChanges = true;
             }
             lastSeen[buf[0]] = Clock.currTime;
+            writeln("Found peer ", buf[0]);
         }
 
         foreach(k, v; lastSeen){
             if(Clock.currTime - v > timeout){
                 listHasChanges = true;
                 lastSeen.remove(k);
+                writeln("Lost peer ", k);
             }
         }
 
         if(listHasChanges){
+            writeln("Peerlist changed!")
             ownerTid.send(PeerList(lastSeen.keys.idup));
         }
     }
@@ -168,8 +171,8 @@ void networkMain(){
 
     while(true){
         receive(
-            (AliveMsg a){
-                writeln("Received HelloMsg: ", a);
+            (PeerList p){
+                writeln("Received peerlist: ", p);
             }
         );
     }
