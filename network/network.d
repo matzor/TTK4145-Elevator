@@ -42,7 +42,7 @@ struct PeerList {
 void network_init(){
     string[] configContents;
     try {
-        configContents = readText("net.con").split;
+        configContents = readText("net.conf").split;
         getopt( configContents,
             std.getopt.config.passThrough,
             "net_bcast_port",           &broadcastport,
@@ -54,23 +54,24 @@ void network_init(){
             "net_peer_id",              &id_str
         );
 
-        timeout = timeout_ms.msecs;
-        interval = interval_ms.msecs;
-
-        if(id_str == "default"){
-            _id = new TcpSocket(new InternetAddress("google.com", 80))
-                .localAddress
-                .toAddrString
-                .splitter('.')
-                .array[$-1]
-                .to!ubyte;
-        } else {
-            _id = id_str.to!ubyte;
-        }
         writeln("Network init complete");
 
     } catch(Exception e){
-        writeln("Unable to load net_bcast config:\n", e.msg);
+        writeln("Unable to load net config:\n", e.msg);
+    }
+
+    timeout = timeout_ms.msecs;
+    interval = interval_ms.msecs;
+
+    if(id_str == "default"){
+        _id = new TcpSocket(new InternetAddress("google.com", 80))
+            .localAddress
+            .toAddrString
+            .splitter('.')
+            .array[$-1]
+            .to!ubyte;
+    } else {
+        _id = id_str.to!ubyte;
     }
 }
 
