@@ -10,8 +10,7 @@ import  std.array,
         std.string,
         std.traits,
         std.typecons,
-        std.datetime,
-        core.thread;
+        std.datetime;
 
 private __gshared ushort        broadcastport   = 19668;
 private __gshared ushort        peerport        = 19667;
@@ -54,7 +53,7 @@ void network_init(){
             "net_peer_id",              &id_str
         );
 
-        writeln("Network init complete");
+        writeln("Network init complete, config file read successfully");
 
     } catch(Exception e){
         writeln("Unable to load net config:\n", e.msg);
@@ -63,18 +62,40 @@ void network_init(){
     timeout = timeout_ms.msecs;
     interval = interval_ms.msecs;
 
+    //Default id is last segment of ip address
     if(id_str == "default"){
-        _id = new TcpSocket(new InternetAddress("google.com", 80))
+        try{
+            //This method assumes internet-connection, fix this??
+            _id = new TcpSocket(new InternetAddress("google.com", 80))
             .localAddress
             .toAddrString
             .splitter('.')
             .array[$-1]
             .to!ubyte;
+
+            //Doesn't work for some reason
+            /*
+            auto a = new InternetAddress(30005);
+            auto hostName = a.toHostNameString;
+            auto serverip = getAddress(hostName); //server hostname
+            auto serverip[1]
+                .splitter(':');
+            */
+
+        }
+        catch(Exception e){
+            writeln("Unable to resolve id:\n", e.msg);}
+        /*
+
+        */
     } else {
         _id = id_str.to!ubyte;
     }
 }
 
+
+/*Continually broadcasts own id on designated (broadcast)port every
+interval_ms timsetep */
 void broadcast_tx(){
     scope(exit) writeln(__FUNCTION__, " died");
     try {
@@ -102,6 +123,9 @@ void broadcast_tx(){
     }catch(Throwable t){ t.writeln; throw t; }
 }
 
+/*Continually listens on the designated (broadcast)port for other peers.
+New peers are added to a list of currently acitve connections. If no message
+from peer before timeout_ms, peer is removed from list of connections. */
 void broadcast_rx(){
     scope(exit) writeln(__FUNCTION__, " died");
     try {
@@ -151,6 +175,14 @@ void broadcast_rx(){
     } catch(Throwable t){ t.writeln; throw t; }
 }
 
+void UDP_tx(){
+    /*TODO: Implement transmit function
+    NB: Messages must be ack'ed! (maybe not if peerlist empty...)*/
+}
+
+void UDP_rx(){
+    //TODO: Implement receive function
+}
 
 void networkMain(){
     network_init();
