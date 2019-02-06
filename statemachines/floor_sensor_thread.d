@@ -47,12 +47,8 @@ class Between_floors : State{
 	}
 }
 
-//Forward declarations
-int floor_sensor_thread_init(int start_state);
-
-
 //State machine loop
-void floor_sensor_thread(){
+void floor_sensor_thread_run(){
 	int floor_sensor_state =AT_FLOOR;
 	while(1){
 		switch(floor_sensor_state){
@@ -75,8 +71,4 @@ void floor_sensor_thread(){
 				break;
 		}
 	}
-}
-
-void main(){
-	floor_sensor_thread();
 }
