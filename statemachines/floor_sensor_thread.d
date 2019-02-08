@@ -17,10 +17,12 @@ class At_floor : State{
 		writeln("ATFLOOR"); //TODO: Remove this line
 		counter=10000000;//TODO: Remove this line
 		//TODO: Send message to movement thread 
+		//TODO: Update current floor.
 	}
 	override void s_do(){
 		counter--;//TODO: Remove this line
-		//TODO: Check for message from movement thread
+		//TODO: Check for message from movement thread.
+		//TODO: If message is "moving", remember direction.
 		
 	}
 	override int s_exit(){
@@ -32,14 +34,10 @@ class Between_floors : State{
 	this(){
 		this.s_entry();
 	}
-	~this(){
-		writeln("DEAD");
-	}
 	override protected void s_entry(){
 		writeln("BETWEEN"); //TODO: Remove this line
 		counter=10000000;//TODO: Remove this line
 
-		//Do nothing
 	}
 	override void s_do(){
 		counter--; //TODO: Remove this line
@@ -52,6 +50,7 @@ class Between_floors : State{
 
 //State machine loop
 void floor_sensor_thread_run(){
+	//TODO: Variable or list to remember current floor. Also remember direction.
 	int floor_sensor_state =AT_FLOOR;
 	while(1){
 		switch(floor_sensor_state){

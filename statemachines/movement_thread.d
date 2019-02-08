@@ -1,5 +1,4 @@
 import std.stdio;
-import std.string;
 import state_interface;
 
 //Thread-global variables
@@ -31,6 +30,7 @@ class Down_state : State{
 	}
 	override protected void s_entry(){
 		//TODO: Make elevator go down.
+		//TODO: Tell floor sensor thread.
 	}
 	override void s_do(){
 		//TODO: Listen from atfloor message from floor sensor thread
@@ -45,6 +45,7 @@ class Up_state : State{
 	}
 	override protected void s_entry(){
 		//TODO: Make elevator go up.
+		//TODO: Tell floor sensor thread.
 	}
 	override void s_do(){
 		//TODO: Listen from atfloor message from floor sensor thread
@@ -83,6 +84,7 @@ void movement_thread_run(){
 				movement_state=up.s_exit();
 				break;
 			default:
+				import std.string;
 				throw new StringException("Invalid state");
 				break;
 		}
