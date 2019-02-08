@@ -36,7 +36,7 @@ class Down_state : State{
 		//TODO: Listen from atfloor message from floor sensor thread
 	}
 	override int s_exit(){
-		//TODO: If order here, return Stop state. Else reurn Down state. 
+		//TODO: If order here or end stop, return Stop state. Else reurn Down state. 
 	}
 }
 class Up_state : State{
@@ -50,14 +50,14 @@ class Up_state : State{
 		//TODO: Listen from atfloor message from floor sensor thread
 	}
 	override int s_exit(){
-		//TODO: If order here, return Stop state. Else reurn Up state. 
+		//TODO: If order here or end stop, return Stop state. Else reurn Up state. 
 	}
 }
 
 
 
 //State machine loop
-void movement_run(){
+void movement_thread_run(){
 	int movement_state =STOP;
 	while(1){
 		switch(movement_state){
@@ -70,14 +70,14 @@ void movement_run(){
 				break;
 			case DOWN:
 				Down_state down = new Down_state;
-				while(0){ //TODO: CHeck for exit condition
+				while(0){ //TODO: Check for exit condition
 					down.s_do();
 				}
 				movement_state=down.s_exit();
 				break;
 			case UP:
 				Up_state up = new Up_state;
-				while(0){ //TODO: CHeck for exit condition
+				while(0){ //TODO: Check for exit condition
 					up.s_do();
 				}
 				movement_state=up.s_exit();

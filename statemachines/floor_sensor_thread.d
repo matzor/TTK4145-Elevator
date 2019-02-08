@@ -32,6 +32,9 @@ class Between_floors : State{
 	this(){
 		this.s_entry();
 	}
+	~this(){
+		writeln("DEAD");
+	}
 	override protected void s_entry(){
 		writeln("BETWEEN"); //TODO: Remove this line
 		counter=10000000;//TODO: Remove this line
