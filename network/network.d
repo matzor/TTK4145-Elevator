@@ -175,18 +175,42 @@ void broadcast_rx(){
 }
 
 struct Udp_msg{
-    ubyte srcId;
-    ubyte dstId;
-    string msg; //TODO: For testing only, remove this
-    //TODO: msg type
-    //TODO: Order (internal/external)
-    //TODO: cost/bid
-    //TODO: Fines
-    //TODO: ACK yes/no
+    ubyte     srcId;
+    ubyte     dstId;
+    string    ordertype;    //"i" || "e" || "a" (internal / external / ack)
+    int       floor;        //floor of order
+    int       bid;          //bid for order
+    int       fines;        //"targetID"
+    int       ack;          //1: message must be ACKed
 }
 
 struct Udp_safe_msg{
     Udp_msg msg;
+}
+
+
+string udp_msg_to_string(Udp_msg msg){
+    string str = to!string(msg.srcId)
+        ~ "," ~ to!string(msg.dstId)
+        ~ "," ~ msg.ordertype
+        ~ "," ~ to!string(msg.floor)
+        ~ "," ~ to!string(msg.bid)
+        ~ "," ~ to!string(msg.fines)
+        ~ "," ~ to!string(msg.ack);
+    return str;
+}
+
+Udp_msg string_to_udp_msg(string str){
+      Udp_msg msg;
+      auto temp     = str.splitter(',').array;
+      msg.srcId     = to!ubyte(temp[0]);
+      msg.dstId     = to!ubyte(temp[1]);
+      msg.ordertype = temp[2];
+      msg.floor     = to!int(temp[3]);
+      msg.bid       = to!int(temp[4]);
+      msg.fines     = to!int(temp[5]);
+      msg.ack       = to!int(temp[6]);
+      return msg;
 }
 
 void UDP_tx(Tid rxTid){
@@ -204,15 +228,16 @@ void UDP_tx(Tid rxTid){
 
     while(true){
         receive(
-          (Udp_msg msg){
-            sock.sendTo(msg.msg, addr);
+            (Udp_msg msg){
+                auto str_msg = udp_msg_to_string(msg);
+                sock.sendTo(str_msg, addr);
             },
 
             (Udp_safe_msg msg){
-              //TODO: implement send function with ack confirmation
+              //TODO: this is probably not going to be used
             }
             );
-          }
+    }
 
     }catch(Throwable t){ t.writeln; throw t; }
 }
@@ -222,9 +247,10 @@ void UDP_rx(Tid txTid){
     scope(exit) writeln(__FUNCTION__, " died");
     try {
 
-    auto    addr    = new InternetAddress("255.255.255.255", com_port);
-    auto    sock    = new UdpSocket();
-    ubyte[] buf     = new ubyte[](bufSize);
+    auto              addr    = new InternetAddress("255.255.255.255", com_port);
+    auto              sock    = new UdpSocket();
+    //ubyte[] buf     = new ubyte[](bufSize);
+    char[1024]        buf        = "";  //This buffer doesnt work with strings??
 
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
@@ -233,10 +259,10 @@ void UDP_rx(Tid txTid){
     while(true){
         auto n = sock.receive(buf);
         if (n>0) {
-            Udp_msg msg;
-            msg.msg = "HEY I GOT A MESSAGE!";
-            //txTid.send(msg);
-            writeln(msg.msg);
+            auto received_msg = to!string(buf);
+            /*auto msg = string_to_udp_msg(received_msg);
+            Format of buffer is wrong, causing error in string conversion
+            */
         }
     }
 
@@ -254,9 +280,17 @@ void networkMain(){
 
     Thread.sleep(500.msecs); //wait for all threads to start...
 
-    Udp_msg msg;
-    msg.msg = "This is a message";
-    txThread.send(msg);
+    /*USED FOR TESTING ONLY*/
+    Udp_msg test_msg;
+    test_msg.srcId = _id;
+    test_msg.dstId = 2;
+    test_msg.ordertype = "e";
+    test_msg.floor = 3;
+    test_msg.bid = 100;
+    test_msg.fines = 0;
+    test_msg.ack = 1;
+
+    txThread.send(test_msg);
 
     while(true){
         receive(
