@@ -12,7 +12,7 @@ import  std.array,
         //std.typecons, std.traits, std.meta,
 
 private __gshared ushort        broadcastport   = 19668;
-private __gshared ushort        com_port        = 19667;       //GLOBAL VARIABLE SHAME SHAME SHAME
+private __gshared ushort        com_port        = 19667;
 private __gshared size_t        bufSize         = 1024;
 private __gshared int           recvFromSelf    = 0;
 private __gshared int           interval_ms     = 100;
@@ -72,7 +72,7 @@ void network_init(){
             .array[$-1]
             .to!ubyte;
 
-            //Doesn't work for some reason
+            //addr.toHostNameString doesn't work for some reason on linux
             /*
             auto a = new InternetAddress(30005);
             auto hostName = a.toHostNameString;
@@ -84,9 +84,6 @@ void network_init(){
         }
         catch(Exception e){
             writeln("Unable to resolve id:\n", e.msg);}
-        /*
-
-        */
     } else {
         _id = id_str.to!ubyte;
     }
@@ -139,7 +136,7 @@ void broadcast_rx(){
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
     sock.Socket.setOption(SocketOptionLevel.SOCKET,
-    SocketOption.RCVTIMEO, timeout);   //sets timeout on receive
+        SocketOption.RCVTIMEO, timeout);   //sets timeout on receive
 
     sock.bind(addr);
     writeln("Ready to listen on port ", broadcastport);
@@ -155,8 +152,7 @@ void broadcast_rx(){
                 listHasChanges = true;
             }
             lastSeen[buf[0]] = Clock.currTime;
-            //writeln("Found peer ", buf[0]);
-        }https://github.com/TTK4145-students-2019/project-group-62
+        }
 
         foreach(k, v; lastSeen){
             if(Clock.currTime - v > timeout){
@@ -214,8 +210,11 @@ Udp_msg string_to_udp_msg(string str){
 }
 
 void UDP_tx(Tid rxTid){
-    /*TODO: Implement transmit function
-    implemented skeleton code*/
+    /*Simple transmit should work. Sends a Udp_msg type, converted to string
+    over UDP.
+    Use: txTid.send(msg)
+    Does not wait for ack. Sends message only once.
+    TODO: make transmit wait for ack or no?*/
 
     scope(exit) writeln(__FUNCTION__, " died");
     try {
@@ -249,12 +248,12 @@ void UDP_rx(Tid txTid){
 
     auto              addr    = new InternetAddress("255.255.255.255", com_port);
     auto              sock    = new UdpSocket();
-    //ubyte[] buf     = new ubyte[](bufSize);
-    char[1024]        buf        = "";  //This buffer doesnt work with strings??
+    char[1024]        buf        = "";
 
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-    sock.bind(addr);
+
+    sock.bind(addr);    //This line causes issues on Windows machines, why???
 
     while(true){
         auto buf_length = sock.receive(buf);
@@ -265,7 +264,7 @@ void UDP_rx(Tid txTid){
         }
     }
 
-    } catch(Throwable t){ t.writeln; throw t; }
+    } catch(Throwable t){ t.writeln;  throw t; }
 }
 
 void networkMain(){
@@ -294,6 +293,7 @@ void networkMain(){
     while(true){
         receive(
             (PeerList p){
+                /*TODO: Handle PeerList updates*/
                 writeln("Received peerlist: ", p);
             },
             (Udp_msg msg){
