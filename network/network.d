@@ -257,12 +257,11 @@ void UDP_rx(Tid txTid){
     sock.bind(addr);
 
     while(true){
-        auto n = sock.receive(buf);
-        if (n>0) {
-            auto received_msg = to!string(buf);
-            /*auto msg = string_to_udp_msg(received_msg);
-            Format of buffer is wrong, causing error in string conversion
-            */
+        auto buf_length = sock.receive(buf);
+        if (buf_length>0) {
+            auto received_msg = to!string(buf[0 .. buf_length]);
+            auto msg = string_to_udp_msg(received_msg);
+            ownerTid.send(msg);
         }
     }
 
@@ -296,6 +295,10 @@ void networkMain(){
         receive(
             (PeerList p){
                 writeln("Received peerlist: ", p);
+            },
+            (Udp_msg msg){
+                /*TODO: Handle UDP message*/
+                writeln("Received message: ", udp_msg_to_string(msg));
             }
         );
     }
