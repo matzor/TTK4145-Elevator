@@ -4,16 +4,15 @@ import  std.array,
         std.conv,
         std.file,
         std.getopt,
-        std.meta,
         std.socket,
         std.stdio,
         std.string,
-        std.traits,
-        std.typecons,
-        std.datetime;
+        std.datetime,
+        core.thread;
+        //std.typecons, std.traits, std.meta,
 
 private __gshared ushort        broadcastport   = 19668;
-private __gshared ushort        peerport        = 19667;
+private __gshared ushort        com_port        = 19667;       //GLOBAL VARIABLE SHAME SHAME SHAME
 private __gshared size_t        bufSize         = 1024;
 private __gshared int           recvFromSelf    = 0;
 private __gshared int           interval_ms     = 100;
@@ -47,7 +46,7 @@ void network_init(){
             "net_bcast_port",           &broadcastport,
             "net_bcast_bufsize",        &bufSize,
             "net_bcast_recvFromSelf",   &recvFromSelf,
-            "net_peer_port",            &peerport,
+            "net_com_port",             &com_port,
             "net_peer_timeout",         &timeout_ms,
             "net_peer_interval",        &interval_ms,
             "net_peer_id",              &id_str
@@ -157,7 +156,7 @@ void broadcast_rx(){
             }
             lastSeen[buf[0]] = Clock.currTime;
             //writeln("Found peer ", buf[0]);
-        }
+        }https://github.com/TTK4145-students-2019/project-group-62
 
         foreach(k, v; lastSeen){
             if(Clock.currTime - v > timeout){
@@ -175,19 +174,90 @@ void broadcast_rx(){
     } catch(Throwable t){ t.writeln; throw t; }
 }
 
-void UDP_tx(){
-    /*TODO: Implement transmit function
-    NB: Messages must be ack'ed! (maybe not if peerlist empty...)*/
+struct Udp_msg{
+    ubyte srcId;
+    ubyte dstId;
+    string msg; //TODO: For testing only, remove this
+    //TODO: msg type
+    //TODO: Order (internal/external)
+    //TODO: cost/bid
+    //TODO: Fines
+    //TODO: ACK yes/no
 }
 
-void UDP_rx(){
-    //TODO: Implement receive function
+struct Udp_safe_msg{
+    Udp_msg msg;
+}
+
+void UDP_tx(Tid rxTid){
+    /*TODO: Implement transmit function
+    implemented skeleton code*/
+
+    scope(exit) writeln(__FUNCTION__, " died");
+    try {
+
+    auto    addr    = new InternetAddress("255.255.255.255", com_port);
+    auto    sock    = new UdpSocket();
+
+    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
+    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
+
+    while(true){
+        receive(
+          (Udp_msg msg){
+            sock.sendTo(msg.msg, addr);
+            },
+
+            (Udp_safe_msg msg){
+              //TODO: implement send function with ack confirmation
+            }
+            );
+          }
+
+    }catch(Throwable t){ t.writeln; throw t; }
+}
+
+
+void UDP_rx(Tid txTid){
+    scope(exit) writeln(__FUNCTION__, " died");
+    try {
+
+    auto    addr    = new InternetAddress("255.255.255.255", com_port);
+    auto    sock    = new UdpSocket();
+    ubyte[] buf     = new ubyte[](bufSize);
+
+    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
+    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
+    sock.bind(addr);
+
+    while(true){
+        auto n = sock.receive(buf);
+        if (n>0) {
+            Udp_msg msg;
+            msg.msg = "HEY I GOT A MESSAGE!";
+            //txTid.send(msg);
+            writeln(msg.msg);
+        }
+    }
+
+    } catch(Throwable t){ t.writeln; throw t; }
 }
 
 void networkMain(){
     network_init();
     auto broadcastTxThread = spawn(&broadcast_tx);
     auto broadcastRxThread = spawn(&broadcast_rx);
+    Tid txThread, rxThread;
+
+    txThread = spawn(&UDP_tx, rxThread);
+    rxThread = spawn(&UDP_rx, txThread);
+
+    Thread.sleep(500.msecs); //wait for all threads to start...
+
+    Udp_msg msg;
+    msg.msg = "This is a message";
+    txThread.send(msg);
+
     while(true){
         receive(
             (PeerList p){
