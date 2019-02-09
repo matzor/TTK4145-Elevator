@@ -21,6 +21,7 @@ private __gshared int           timeout_ms      = 550;
 private __gshared Duration      timeout;
 private __gshared string        id_str          = "default";
 private __gshared ubyte         _id;
+private __gshared Tid           txThread, rxThread, safeTxThread;
 
 ubyte id(){
     return _id;
@@ -173,11 +174,12 @@ void broadcast_rx(){
 struct Udp_msg{
     ubyte     srcId;
     ubyte     dstId;
-    string    ordertype;    //"i" || "e" || "a" (internal / external / ack)
+    char      msgtype;    //"i" || "e" || "a" (internal / external / ack)
     int       floor;        //floor of order
     int       bid;          //bid for order
     int       fines;        //"targetID"
     int       ack;          //1: message must be ACKed
+    int       ack_id;
 }
 
 struct Udp_safe_msg{
@@ -188,11 +190,12 @@ struct Udp_safe_msg{
 string udp_msg_to_string(Udp_msg msg){
     string str = to!string(msg.srcId)
         ~ "," ~ to!string(msg.dstId)
-        ~ "," ~ msg.ordertype
+        ~ "," ~ to!string(msg.msgtype)
         ~ "," ~ to!string(msg.floor)
         ~ "," ~ to!string(msg.bid)
         ~ "," ~ to!string(msg.fines)
-        ~ "," ~ to!string(msg.ack);
+        ~ "," ~ to!string(msg.ack)
+        ~ "," ~ to!string(msg.ack_id);
     return str;
 }
 
@@ -201,20 +204,21 @@ Udp_msg string_to_udp_msg(string str){
       auto temp     = str.splitter(',').array;
       msg.srcId     = to!ubyte(temp[0]);
       msg.dstId     = to!ubyte(temp[1]);
-      msg.ordertype = temp[2];
+      msg.msgtype = to!char(temp[2]);
       msg.floor     = to!int(temp[3]);
       msg.bid       = to!int(temp[4]);
       msg.fines     = to!int(temp[5]);
       msg.ack       = to!int(temp[6]);
+      msg.ack_id    = to!int(temp[7]);
       return msg;
 }
 
-void UDP_tx(Tid rxTid){
+void UDP_tx(){
     /*Simple transmit should work. Sends a Udp_msg type, converted to string
     over UDP.
     Use: txTid.send(msg)
     Does not wait for ack. Sends message only once.
-    TODO: make transmit wait for ack or no?*/
+    TODO: make transmit wait for ack or no? Own function for this. */
 
     scope(exit) writeln(__FUNCTION__, " died");
     try {
@@ -230,30 +234,25 @@ void UDP_tx(Tid rxTid){
             (Udp_msg msg){
                 auto str_msg = udp_msg_to_string(msg);
                 sock.sendTo(str_msg, addr);
-            },
-
-            (Udp_safe_msg msg){
-              //TODO: this is probably not going to be used
             }
             );
     }
-
     }catch(Throwable t){ t.writeln; throw t; }
 }
 
 
-void UDP_rx(Tid txTid){
+void UDP_rx(){
     scope(exit) writeln(__FUNCTION__, " died");
     try {
 
-    auto              addr    = new InternetAddress("255.255.255.255", com_port);
+    auto              addr    = new InternetAddress(com_port);
     auto              sock    = new UdpSocket();
     char[1024]        buf        = "";
 
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
 
-    sock.bind(addr);    //This line causes issues on Windows machines, why???
+    sock.bind(addr);
 
     while(true){
         auto buf_length = sock.receive(buf);
@@ -267,28 +266,78 @@ void UDP_rx(Tid txTid){
     } catch(Throwable t){ t.writeln;  throw t; }
 }
 
+void udp_send(Udp_msg msg){
+    txThread.send(msg);
+}
+
+/*TODO: Fix udp_send_safe function so it actually recieves acks
+
+bool udp_send_safe(Udp_msg msg, int retransmit_number = 5){
+    bool ack = false;
+    safeTxThread = spawn(&udp_send_safe_thread, msg, retransmit_number);
+    receive(
+        (bool msg){ack = msg;}
+        );
+    return ack;
+}
+
+void udp_send_safe_thread(Udp_msg msg, int retransmit_number = 5){
+    try{
+        bool ack = false;
+        for (int i = 0; i<retransmit_number; i++){
+            udp_send(msg);
+            receiveTimeout(interval,
+                (Udp_msg answer_msg){
+                    writeln("send func got message");
+                    if((msg.ack_id == answer_msg.ack_id) && (msg.srcId == answer_msg.dstId)){
+                        ack = true;
+                        writeln(ack);
+                    }
+                }
+                );
+            if (ack){break;}
+        }
+        ownerTid.send(ack);
+        } catch(Throwable t){ t.writeln;  throw t; }
+}
+
+*/
+
+void udp_ack_confirm(Udp_msg received_msg){
+    Udp_msg msg;
+    msg.srcId = _id;
+    msg.dstId = received_msg.srcId;
+    msg.msgtype = 'a';
+    msg.floor = 0;
+    msg.bid = 0;
+    msg.fines = 0;
+    msg.ack = 0;
+    msg.ack_id = received_msg.ack;
+    udp_send(msg);
+}
+
 void networkMain(){
     network_init();
     auto broadcastTxThread = spawn(&broadcast_tx);
     auto broadcastRxThread = spawn(&broadcast_rx);
-    Tid txThread, rxThread;
 
-    txThread = spawn(&UDP_tx, rxThread);
-    rxThread = spawn(&UDP_rx, txThread);
+    txThread = spawn(&UDP_tx);
+    rxThread = spawn(&UDP_rx);
 
     Thread.sleep(500.msecs); //wait for all threads to start...
 
     /*USED FOR TESTING ONLY*/
     Udp_msg test_msg;
     test_msg.srcId = _id;
-    test_msg.dstId = 2;
-    test_msg.ordertype = "e";
+    test_msg.dstId = _id;
+    test_msg.msgtype = 'e';
     test_msg.floor = 3;
     test_msg.bid = 100;
     test_msg.fines = 0;
     test_msg.ack = 1;
+    test_msg.ack_id = 5;
 
-    txThread.send(test_msg);
+    udp_send(test_msg);
 
     while(true){
         receive(
@@ -298,9 +347,30 @@ void networkMain(){
             },
             (Udp_msg msg){
                 /*TODO: Handle UDP message*/
-                writeln("Received message: ", udp_msg_to_string(msg));
-            }
+
+                switch(msg.msgtype)
+                {
+                    case 'e':
+                        /*TODO: Handle external orders*/
+                        writeln("Received message type ", 'e');
+                        break;
+                    case 'i':
+                        /*TODO: Handle internal orders*/
+                        writeln("Received message type ", 'i');
+                        break;
+                    case 'a':
+                        /*TODO: Handle ack messages
+                        should somehow send message to udp_send_safe func*/
+                        writeln("Received message type ", 'a');
+                        break;
+                    default:
+                        /*TODO: Handle invalid message type*/
+                        writeln("Invalid message type");
+                        break;
+                }
+        }
         );
+
     }
 }
 
