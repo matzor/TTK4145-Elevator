@@ -21,6 +21,7 @@ private __gshared int           timeout_ms      = 550;
 private __gshared Duration      timeout;
 private __gshared string        id_str          = "default";
 private __gshared ubyte         _id;
+private __gshared int           msg_resend_n    = 5;
 private __gshared Tid           txThread, rxThread, safeTxThread;
 
 ubyte id(){
@@ -266,42 +267,36 @@ void UDP_rx(){
     } catch(Throwable t){ t.writeln;  throw t; }
 }
 
-void udp_send(Udp_msg msg){
-    txThread.send(msg);
-}
 
-/*TODO: Fix udp_send_safe function so it actually recieves acks
-
-bool udp_send_safe(Udp_msg msg, int retransmit_number = 5){
-    bool ack = false;
-    safeTxThread = spawn(&udp_send_safe_thread, msg, retransmit_number);
-    receive(
-        (bool msg){ack = msg;}
-        );
-    return ack;
-}
-
-void udp_send_safe_thread(Udp_msg msg, int retransmit_number = 5){
+void udp_safe_sender(int retransmit_number = 5){
+    /*TODO: Generate unique ack id for messages*/
+    scope(exit) writeln(__FUNCTION__, " died");
     try{
-        bool ack = false;
-        for (int i = 0; i<retransmit_number; i++){
-            udp_send(msg);
-            receiveTimeout(interval,
-                (Udp_msg answer_msg){
-                    writeln("send func got message");
-                    if((msg.ack_id == answer_msg.ack_id) && (msg.srcId == answer_msg.dstId)){
-                        ack = true;
-                        writeln(ack);
+        while(true){
+            receive(
+                (Udp_msg msg){
+                    bool ack = false;
+                    msg.ack = 1;
+                    for (int i = 0; i<retransmit_number; i++){
+                        udp_send(msg);
+                        receiveTimeout(interval,
+                            (Udp_msg answer_msg){
+                                if((msg.ack_id == answer_msg.ack_id) && (msg.srcId == answer_msg.dstId)){
+                                    ack = true;
+                                }
+                            }
+                            );
+                        if (ack){
+                            writeln("Safe send got ACK");
+                            break;}
                     }
-                }
+                    ownerTid.send(ack);
+                    }
                 );
-            if (ack){break;}
-        }
-        ownerTid.send(ack);
-        } catch(Throwable t){ t.writeln;  throw t; }
+                }
+            } catch(Throwable t){ t.writeln;  throw t; }
 }
 
-*/
 
 void udp_ack_confirm(Udp_msg received_msg){
     Udp_msg msg;
@@ -312,8 +307,16 @@ void udp_ack_confirm(Udp_msg received_msg){
     msg.bid = 0;
     msg.fines = 0;
     msg.ack = 0;
-    msg.ack_id = received_msg.ack;
+    msg.ack_id = received_msg.ack_id;
     udp_send(msg);
+}
+
+void udp_send(Udp_msg msg){
+    txThread.send(msg);
+}
+
+void udp_send_safe(Udp_msg msg){
+    safeTxThread.send(msg);
 }
 
 void networkMain(){
@@ -323,10 +326,15 @@ void networkMain(){
 
     txThread = spawn(&UDP_tx);
     rxThread = spawn(&UDP_rx);
+    safeTxThread = spawn(&udp_safe_sender, msg_resend_n);
 
-    Thread.sleep(500.msecs); //wait for all threads to start...
+    Thread.sleep(250.msecs); //wait for all threads to start...
+
+
 
     /*USED FOR TESTING ONLY*/
+
+
     Udp_msg test_msg;
     test_msg.srcId = _id;
     test_msg.dstId = _id;
@@ -337,7 +345,9 @@ void networkMain(){
     test_msg.ack = 1;
     test_msg.ack_id = 5;
 
-    udp_send(test_msg);
+    udp_send_safe(test_msg);
+
+
 
     while(true){
         receive(
@@ -353,15 +363,20 @@ void networkMain(){
                     case 'e':
                         /*TODO: Handle external orders*/
                         writeln("Received message type ", 'e');
+                        /*udp_ack_confirm probably shouldnt be called here like this
+                        For testing purposes only.  */
+                        if((msg.ack != 0) && msg.dstId == _id){
+                            udp_ack_confirm(msg);
+                        }
                         break;
                     case 'i':
                         /*TODO: Handle internal orders*/
                         writeln("Received message type ", 'i');
                         break;
                     case 'a':
-                        /*TODO: Handle ack messages
-                        should somehow send message to udp_send_safe func*/
+                        /*TODO: Handle ack messages*/
                         writeln("Received message type ", 'a');
+                        safeTxThread.send(msg);
                         break;
                     default:
                         /*TODO: Handle invalid message type*/
@@ -374,6 +389,8 @@ void networkMain(){
     }
 }
 
-void main(){
+int main(){
     networkMain();
+
+    return 0;
 }
