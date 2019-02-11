@@ -21,7 +21,6 @@ private __gshared int           timeout_ms      = 550;
 private __gshared Duration      timeout;
 private __gshared string        id_str          = "default";
 private __gshared ubyte         _id;
-private __gshared int           msg_resend_n    = 5;
 private __gshared Tid           txThread, rxThread, safeTxThread;
 
 ubyte id(){
@@ -173,14 +172,14 @@ void broadcast_rx(){
 }
 
 struct Udp_msg{
-    ubyte     srcId;
-    ubyte     dstId;
-    char      msgtype;    //"i" || "e" || "a" (internal / external / ack)
-    int       floor;        //floor of order
-    int       bid;          //bid for order
-    int       fines;        //"targetID"
-    int       ack;          //1: message must be ACKed
-    int       ack_id;
+        ubyte     srcId     = 0;
+        ubyte     dstId     = 0;
+        char      msgtype   = 0;    //"i" || "e" || "a" (internal / external / ack)
+        int       floor     = 0;    //floor of order
+        int       bid       = 0;    //bid for order
+        int       fines     = 0;    //"targetID"
+        int       ack       = 0;    //1: message must be ACKed
+        int       ack_id    = 0;
 }
 
 struct Udp_safe_msg{
@@ -267,36 +266,70 @@ void UDP_rx(){
     } catch(Throwable t){ t.writeln;  throw t; }
 }
 
-
-void udp_safe_sender(int retransmit_number = 5){
-    /*TODO: Generate unique ack id for messages*/
+void udp_safe_send_handler(){
     scope(exit) writeln(__FUNCTION__, " died");
     try{
-        while(true){
-            receive(
-                (Udp_msg msg){
-                    bool ack = false;
-                    msg.ack = 1;
-                    for (int i = 0; i<retransmit_number; i++){
-                        udp_send(msg);
-                        receiveTimeout(interval,
-                            (Udp_msg answer_msg){
-                                if((msg.ack_id == answer_msg.ack_id) && (msg.srcId == answer_msg.dstId)){
-                                    ack = true;
-                                }
-                            }
-                            );
-                        if (ack){
-                            writeln("Safe send got ACK");
-                            break;}
-                    }
-                    ownerTid.send(ack);
-                    }
-                );
+    Tid[int] active_senders;
+    while(true){
+        receive(
+            (Udp_msg msg){
+                switch(msg.msgtype){
+                    case 'a':
+                        if (msg.ack_id in active_senders){
+                            active_senders[msg.ack_id].send(msg);
+                        }
+                        break;
+                    default:
+                        if (msg.ack_id !in active_senders){
+                            active_senders[msg.ack_id] = spawn(&udp_safe_sender, msg);
+                        }
+                        break;
                 }
-            } catch(Throwable t){ t.writeln;  throw t; }
+            },
+            (int acked_ack_id) {
+                active_senders.remove(acked_ack_id);
+            }
+            );
+    }
+    } catch(Throwable t){ t.writeln;  throw t; }
 }
 
+void udp_safe_sender(Udp_msg msg){
+    scope(exit) writeln(__FUNCTION__, " died");
+    try{
+            bool ack = false;
+            bool txEnable = true;
+            while (!ack){
+                if (txEnable){
+                    udp_send(msg);
+                }
+                receiveTimeout(interval,
+                    (Udp_msg answer_msg){
+                        if((msg.ack_id == answer_msg.ack_id) && (msg.srcId == answer_msg.dstId))
+                        {
+                            ack = true;
+                        }
+                    },
+                    (TxEnable t) {txEnable = t;}
+                    );
+            }
+            ownerTid.send(msg.ack_id);
+        }catch(Throwable t){ t.writeln;  throw t; }
+}
+
+
+void udp_send(Udp_msg msg){
+    txThread.send(msg);
+}
+
+
+void udp_send_safe(Udp_msg msg){
+    msg.ack = 1;
+    if (!msg.ack_id){
+        /*TODO: Create random/unique ack_id*/
+    }
+    safeTxThread.send(msg);
+}
 
 void udp_ack_confirm(Udp_msg received_msg){
     Udp_msg msg;
@@ -311,42 +344,17 @@ void udp_ack_confirm(Udp_msg received_msg){
     udp_send(msg);
 }
 
-void udp_send(Udp_msg msg){
-    txThread.send(msg);
-}
-
-void udp_send_safe(Udp_msg msg){
-    safeTxThread.send(msg);
-}
-
 void networkMain(){
     network_init();
     auto broadcastTxThread = spawn(&broadcast_tx);
     auto broadcastRxThread = spawn(&broadcast_rx);
 
-    txThread = spawn(&UDP_tx);
-    rxThread = spawn(&UDP_rx);
-    safeTxThread = spawn(&udp_safe_sender, msg_resend_n);
+    txThread        = spawn(&UDP_tx);
+    rxThread        = spawn(&UDP_rx);
+    safeTxThread   = spawn(&udp_safe_send_handler);
+
 
     Thread.sleep(250.msecs); //wait for all threads to start...
-
-
-
-    /*USED FOR TESTING ONLY*/
-
-
-    Udp_msg test_msg;
-    test_msg.srcId = _id;
-    test_msg.dstId = _id;
-    test_msg.msgtype = 'e';
-    test_msg.floor = 3;
-    test_msg.bid = 100;
-    test_msg.fines = 0;
-    test_msg.ack = 1;
-    test_msg.ack_id = 5;
-
-    udp_send_safe(test_msg);
-
 
 
     while(true){
@@ -365,7 +373,7 @@ void networkMain(){
                         writeln("Received message type ", 'e');
                         /*udp_ack_confirm probably shouldnt be called here like this
                         For testing purposes only.  */
-                        if((msg.ack != 0) && msg.dstId == _id){
+                        if((msg.ack) && msg.dstId == _id){
                             udp_ack_confirm(msg);
                         }
                         break;
@@ -387,10 +395,4 @@ void networkMain(){
         );
 
     }
-}
-
-int main(){
-    networkMain();
-
-    return 0;
 }
