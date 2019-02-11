@@ -202,23 +202,26 @@ string udp_msg_to_string(Udp_msg msg){
 Udp_msg string_to_udp_msg(string str){
       Udp_msg msg;
       auto temp     = str.splitter(',').array;
-      msg.srcId     = to!ubyte(temp[0]);
-      msg.dstId     = to!ubyte(temp[1]);
-      msg.msgtype = to!char(temp[2]);
-      msg.floor     = to!int(temp[3]);
-      msg.bid       = to!int(temp[4]);
-      msg.fines     = to!int(temp[5]);
-      msg.ack       = to!int(temp[6]);
-      msg.ack_id    = to!int(temp[7]);
+      if (temp.length >= 7){
+          msg.srcId     = to!ubyte(temp[0]);
+          msg.dstId     = to!ubyte(temp[1]);
+          msg.msgtype   = to!char(temp[2]);
+          msg.floor     = to!int(temp[3]);
+          msg.bid       = to!int(temp[4]);
+          msg.fines     = to!int(temp[5]);
+          msg.ack       = to!int(temp[6]);
+          msg.ack_id    = to!int(temp[7]);
+      }
+      else{writeln("Corrupt message format");}
       return msg;
 }
 
 void UDP_tx(){
     /*Simple transmit should work. Sends a Udp_msg type, converted to string
     over UDP.
-    Use: txTid.send(msg)
+    Use: txTid.send(msg). Must be run as own thread.
     Does not wait for ack. Sends message only once.
-    TODO: make transmit wait for ack or no? Own function for this. */
+    Use udp_send / udp_send_safe functions */
 
     scope(exit) writeln(__FUNCTION__, " died");
     try {
@@ -268,6 +271,8 @@ void UDP_rx(){
 
 void udp_safe_send_handler(){
     scope(exit) writeln(__FUNCTION__, " died");
+    /*TODO: receive PeerList updates, deactivate tx for any threads trying to
+    send to an id not in peerlist. */
     try{
     Tid[int] active_senders;
     while(true){
@@ -360,7 +365,8 @@ void networkMain(){
     while(true){
         receive(
             (PeerList p){
-                /*TODO: Handle PeerList updates*/
+                /*TODO: Handle PeerList updates
+                peerlist should be sent to safe_send_handler */
                 writeln("Received peerlist: ", p);
             },
             (Udp_msg msg){
@@ -370,7 +376,7 @@ void networkMain(){
                 {
                     case 'e':
                         /*TODO: Handle external orders*/
-                        writeln("Received message type ", 'e');
+                        writeln("Received message type ", 'e', " from id ", msg.srcId);
                         /*udp_ack_confirm probably shouldnt be called here like this
                         For testing purposes only.  */
                         if((msg.ack) && msg.dstId == _id){
@@ -379,11 +385,11 @@ void networkMain(){
                         break;
                     case 'i':
                         /*TODO: Handle internal orders*/
-                        writeln("Received message type ", 'i');
+                        writeln("Received message type ", 'i', " from id ", msg.srcId);
                         break;
                     case 'a':
                         /*TODO: Handle ack messages*/
-                        writeln("Received message type ", 'a');
+                        writeln("Received message type ", 'a', " from id ", msg.srcId);
                         safeTxThread.send(msg);
                         break;
                     default:
