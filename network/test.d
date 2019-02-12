@@ -20,7 +20,7 @@ int main(){
 
 
     while(true){
-        //network.udp_send_safe(test_msg);
+        network.udp_send_safe(test_msg, thisTid);
         Thread.sleep(500.msecs);
     }
 

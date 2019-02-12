@@ -272,9 +272,12 @@ void UDP_rx(){
 void udp_safe_send_handler(){
     scope(exit) writeln(__FUNCTION__, " died");
     /*TODO: receive PeerList updates, deactivate tx for any threads trying to
-    send to an id not in peerlist. */
+    send to an id not in peerlist.
+    Also need to keep track of which process sends which message so it can
+    get a message back when acked*/
     try{
     Tid[int] active_senders;
+    PeerList peers;
     while(true){
         receive(
             (Udp_msg msg){
@@ -285,15 +288,20 @@ void udp_safe_send_handler(){
                         }
                         break;
                     default:
-                        if (msg.ack_id !in active_senders){
-                            active_senders[msg.ack_id] = spawn(&udp_safe_sender, msg);
+                        if (msg.ack_id !in active_senders){ //check if thread already exist
+                            foreach(id;peers){//check if dstId is alive/connected, or broadcast msg
+                                if (msg.dstId == id || msg.dstId == 255){
+                                    active_senders[msg.ack_id] = spawn(&udp_safe_sender, msg);
+                                }
+                            }
                         }
                         break;
                 }
             },
             (int acked_ack_id) {
                 active_senders.remove(acked_ack_id);
-            }
+            },
+            (PeerList p) {peers = p;}
             );
     }
     } catch(Throwable t){ t.writeln;  throw t; }
@@ -328,7 +336,7 @@ void udp_send(Udp_msg msg){
 }
 
 
-void udp_send_safe(Udp_msg msg){
+void udp_send_safe(Udp_msg msg, Tid sender_id){
     msg.ack = 1;
     if (!msg.ack_id){
         /*TODO: Create random/unique ack_id*/
@@ -367,6 +375,7 @@ void networkMain(){
             (PeerList p){
                 /*TODO: Handle PeerList updates
                 peerlist should be sent to safe_send_handler */
+                safeTxThread.send(p);
                 writeln("Received peerlist: ", p);
             },
             (Udp_msg msg){
