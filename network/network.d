@@ -8,12 +8,13 @@ import  std.array,
         std.stdio,
         std.string,
         std.datetime,
-        core.thread;
+        core.thread,
+        network_peers;
         //std.typecons, std.traits, std.meta,
 
 private __gshared ushort        broadcastport   = 19668;
 private __gshared ushort        com_port        = 19667;
-private __gshared size_t        bufSize         = 1024;
+private __gshared size_t        bufSize         = 1024; //is this even used?
 private __gshared int           recvFromSelf    = 0;
 private __gshared int           interval_ms     = 100;
 private __gshared Duration      interval;
@@ -359,6 +360,10 @@ void udp_ack_confirm(Udp_msg received_msg){
 
 void networkMain(){
     network_init();
+
+    //auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
+
+    /*TODO: Move peer broadcast functions to network_peers.d*/
     auto broadcastTxThread = spawn(&broadcast_tx);
     auto broadcastRxThread = spawn(&broadcast_rx);
 
@@ -385,21 +390,27 @@ void networkMain(){
                 {
                     case 'e':
                         /*TODO: Handle external orders*/
-                        writeln("Received message type ", 'e', " from id ", msg.srcId);
-                        /*udp_ack_confirm probably shouldnt be called here like this
-                        For testing purposes only.  */
-                        if((msg.ack) && msg.dstId == _id){
-                            udp_ack_confirm(msg);
+                        if (msg.dstId == _id || msg.dstId == 255){
+                            writeln("Received message type ", 'e', " from id ", msg.srcId);
+                            /*udp_ack_confirm probably shouldnt be called here like this
+                            For testing purposes only.  */
+                            if((msg.ack) && msg.dstId == _id){
+                                udp_ack_confirm(msg);
+                            }
                         }
                         break;
                     case 'i':
                         /*TODO: Handle internal orders*/
-                        writeln("Received message type ", 'i', " from id ", msg.srcId);
+                        if (msg.dstId == _id || msg.dstId == 255){
+                            writeln("Received message type ", 'i', " from id ", msg.srcId);
+                        }
                         break;
                     case 'a':
                         /*TODO: Handle ack messages*/
-                        writeln("Received message type ", 'a', " from id ", msg.srcId);
-                        safeTxThread.send(msg);
+                        if (msg.dstId == _id || msg.dstId == 255){
+                            writeln("Received message type ", 'a', " from id ", msg.srcId);
+                            safeTxThread.send(msg);
+                        }
                         break;
                     default:
                         /*TODO: Handle invalid message type*/
@@ -408,6 +419,5 @@ void networkMain(){
                 }
         }
         );
-
     }
 }
