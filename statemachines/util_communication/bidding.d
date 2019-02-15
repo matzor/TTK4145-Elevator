@@ -1,18 +1,33 @@
-int calculate_own_cost(int fine){
+ulong calculate_own_cost(bool fine){
 	/** COST CALCULATING TABLE:
 		-Add:
 			*|Order_floor-Current_floor| +diff
-			*Fine +100
 			*Dir=! order_dir  +10 
-		-If tie, first sender wins. TODO: implement this.
+			*Fine +100
+		-If tie, lowest ID wins, this a part of assoc_array and min value.
 	**/
-
-	//TODO: Get current floor and direction from floor sensor thread.
-	//TODO: Calculate cost like in table above.
-	//TODO: Return cost.
+	int current_floor;
+	int order_floor;
+	int current_direction;
+	int order_direction;
+	//TODO: Get current floor and direction from floor sensor thread. 
+	int delta_floor=current_floor-order_floor;
+	if(delta_floor<0){
+		 delta_floor = -delta_floor;
+	}
+	ulong own_cost=0;
+	own_cost+=delta_floor;
+	if(current_direction != order_direction){
+		own_cost+=10;
+	}
+	if(fine){
+		own_cost+=100;
+	}	
+	return own_cost;
 }
 
-int calculate_winner(int own_cost, int others_cost[]){ //Return ID of winner. //TODO: Fix how list input works.
-	//TODO: Compare own cost to others cost.
-	//TODO: return ID of winner. 
+ubyte calculate_winner(ulong[ubyte] cost_list){ //Return ID of winner.
+	import	assoc_array_helper;
+	return key_of_min_value(cost_list);
 } 
+
