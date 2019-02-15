@@ -12,30 +12,21 @@ import  std.array,
         network_peers;
         //std.typecons, std.traits, std.meta,
 
-private __gshared ushort        broadcastport   = 19668;
-private __gshared ushort        com_port        = 19667;
-private __gshared size_t        bufSize         = 1024; //is this even used?
-private __gshared int           recvFromSelf    = 0;
-private __gshared int           interval_ms     = 100;
+private __gshared ushort        broadcastport       = 19668;
+private __gshared ushort        com_port            = 19667;
+private __gshared size_t        bufSize             = 1024; //is this even used?
+private __gshared int           recvFromSelf        = 0;
+private __gshared int           interval_ms         = 100;
 private __gshared Duration      interval;
-private __gshared int           timeout_ms      = 550;
+private __gshared int           timeout_ms          = 550;
 private __gshared Duration      timeout;
-private __gshared string        id_str          = "default";
+private __gshared string        id_str              = "default";
 private __gshared ubyte         _id;
+private __gshared int           retransmit_count    = 5;
 private __gshared Tid           txThread, rxThread, safeTxThread;
 
 ubyte id(){
     return _id;
-}
-
-struct TxEnable {
-    bool enable;
-    alias enable this;
-}
-
-struct PeerList {
-    immutable(ubyte)[] peers;
-    alias peers this;
 }
 
 
@@ -91,87 +82,6 @@ void network_init(){
     }
 }
 
-
-/*Continually broadcasts own id on designated (broadcast)port every
-interval_ms timsetep */
-void broadcast_tx(){
-    scope(exit) writeln(__FUNCTION__, " died");
-    try {
-
-    auto    addr                    = new InternetAddress("255.255.255.255", broadcastport);
-    auto    sock                    = new UdpSocket();
-    ubyte[1] buf                    = [id];
-
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-
-    bool txEnable = true;
-    writeln("Ready to broadcast on port ", broadcastport);
-    writeln("Broadcasting id: ", buf);
-    while(true){
-        receiveTimeout(interval,
-            (TxEnable t){
-                txEnable = t;
-            }
-        );
-        if(txEnable){
-            sock.sendTo(buf, addr);
-        }
-    }
-    }catch(Throwable t){ t.writeln; throw t; }
-}
-
-/*Continually listens on the designated (broadcast)port for other peers.
-New peers are added to a list of currently acitve connections. If no message
-from peer before timeout_ms, peer is removed from list of connections. */
-void broadcast_rx(){
-    scope(exit) writeln(__FUNCTION__, " died");
-    try {
-
-    auto    addr                    = new InternetAddress(broadcastport);
-    auto    sock                    = new UdpSocket();
-
-    ubyte[1]            buf;
-    SysTime[ubyte]      lastSeen;
-    bool                listHasChanges;
-
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-    sock.Socket.setOption(SocketOptionLevel.SOCKET,
-        SocketOption.RCVTIMEO, timeout);   //sets timeout on receive
-
-    sock.bind(addr);
-    writeln("Ready to listen on port ", broadcastport);
-
-    while(true){
-        listHasChanges  = false;
-        buf[]           = 0;
-
-        sock.receiveFrom(buf);
-
-        if(buf[0] != 0){
-            if(buf[0] !in lastSeen){
-                listHasChanges = true;
-            }
-            lastSeen[buf[0]] = Clock.currTime;
-        }
-
-        foreach(k, v; lastSeen){
-            if(Clock.currTime - v > timeout){
-                listHasChanges = true;
-                lastSeen.remove(k);
-                writeln("Lost peer ", k);
-            }
-        }
-
-        if(listHasChanges){
-            writeln("Peerlist changed!");
-            ownerTid.send(PeerList(lastSeen.keys.idup));
-        }
-    }
-    } catch(Throwable t){ t.writeln; throw t; }
-}
-
 struct Udp_msg{
         ubyte     srcId     = 0;
         ubyte     dstId     = 0;
@@ -217,7 +127,7 @@ Udp_msg string_to_udp_msg(string str){
       return msg;
 }
 
-void UDP_tx(){
+void Udp_tx(){
     /*Simple transmit should work. Sends a Udp_msg type, converted to string
     over UDP.
     Use: txTid.send(msg). Must be run as own thread.
@@ -245,7 +155,7 @@ void UDP_tx(){
 }
 
 
-void UDP_rx(){
+void Udp_rx(){
     scope(exit) writeln(__FUNCTION__, " died");
     try {
 
@@ -313,7 +223,7 @@ void udp_safe_sender(Udp_msg msg){
     try{
             bool ack = false;
             bool txEnable = true;
-            while (!ack){
+            for (int i = 0; i < retransmit_count; i++){
                 if (txEnable){
                     udp_send(msg);
                 }
@@ -326,6 +236,7 @@ void udp_safe_sender(Udp_msg msg){
                     },
                     (TxEnable t) {txEnable = t;}
                     );
+                    if (ack){break;}
             }
             ownerTid.send(msg.ack_id);
         }catch(Throwable t){ t.writeln;  throw t; }
@@ -336,12 +247,17 @@ void udp_send(Udp_msg msg){
     txThread.send(msg);
 }
 
+struct Udp_msg_owner{
+    Udp_msg msg;
+    Tid owner_thread;
+}
 
-void udp_send_safe(Udp_msg msg, Tid sender_id){
+void udp_send_safe(Udp_msg msg){
     msg.ack = 1;
     if (!msg.ack_id){
         /*TODO: Create random/unique ack_id*/
     }
+    Udp_msg_owner msg_owner;
     safeTxThread.send(msg);
 }
 
@@ -360,16 +276,11 @@ void udp_ack_confirm(Udp_msg received_msg){
 
 void networkMain(){
     network_init();
+    auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
 
-    //auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
-
-    /*TODO: Move peer broadcast functions to network_peers.d*/
-    auto broadcastTxThread = spawn(&broadcast_tx);
-    auto broadcastRxThread = spawn(&broadcast_rx);
-
-    txThread        = spawn(&UDP_tx);
-    rxThread        = spawn(&UDP_rx);
-    safeTxThread   = spawn(&udp_safe_send_handler);
+    txThread        = spawn(&Udp_tx);
+    rxThread        = spawn(&Udp_rx);
+    safeTxThread    = spawn(&udp_safe_send_handler);
 
 
     Thread.sleep(250.msecs); //wait for all threads to start...
