@@ -167,6 +167,7 @@ void udp_safe_send_handler(){
     try{
     Tid[int] active_senders;
     PeerList peers;
+    bool sending_started;
     while(true){
         receive(
             (Udp_msg msg){              //Receiving acks
@@ -175,16 +176,18 @@ void udp_safe_send_handler(){
                 }
             },
             (Udp_msg_owner owner_msg){  //Sending messages
+                sending_started = false;
                 Udp_msg msg = owner_msg.msg;
                 Tid msg_owner_thread = owner_msg.owner_thread;
-                if (msg.ack_id !in active_senders){                     //check if thread already exist
+                if (msg.ack_id !in active_senders){                     //check if thread already exist, do nothing if exist
                     foreach(id;peers){
                         if (msg.dstId == id || msg.dstId == 255){       //check if dstId is alive/connected, or broadcast msg
                             active_senders[msg.ack_id] = spawn(&udp_safe_sender, msg, msg_owner_thread);
+                            sending_started = true;
                             break;
                         }
-                        //else{msg_owner_thread.send(false); }            //automatic nack if reciever not alive
                     }
+                    if(!sending_started){msg_owner_thread.send(false); } //automatic nack if reciever not alive
                 }
             },
             (int acked_ack_id) {
