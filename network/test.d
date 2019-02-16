@@ -9,7 +9,7 @@ int main(){
     Thread.sleep(500.msecs);
 
     Udp_msg test_msg;
-    test_msg.dstId = network.id();
+    test_msg.dstId = 255;
     test_msg.msgtype = 'e';
     test_msg.floor = 3;
     test_msg.bid = 100;
@@ -23,7 +23,7 @@ int main(){
         receiveTimeout(550.msecs,
             (bool ack) {writeln("Watchdog got ack: ", ack); }
             );
-        Thread.sleep(500.msecs);
+        Thread.sleep(700.msecs);
     }
 
     return 0;

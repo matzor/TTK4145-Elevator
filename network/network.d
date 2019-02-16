@@ -206,7 +206,7 @@ void udp_safe_sender(Udp_msg msg, Tid msg_owner_thread){
                 }
                 receiveTimeout(interval,
                     (Udp_msg answer_msg){
-                        if((msg.ack_id == answer_msg.ack_id) && (msg.srcId == answer_msg.dstId))
+                        if((msg.ack_id == answer_msg.ack_id) && ((answer_msg.dstId == msg.srcId) || msg.dstId == 255))
                         {
                             ack = true;
                         }
@@ -276,17 +276,18 @@ void networkMain(){
             (Udp_msg msg){
                 /*TODO: Handle UDP message*/
 
+                /*udp_ack_confirm probably shouldnt be called here like this
+                For testing purposes only.  */
+                if((msg.ack) && (msg.dstId == _id) || (msg.dstId == 255)){
+                    udp_ack_confirm(msg);
+                }
+
                 switch(msg.msgtype)
                 {
                     case 'e':
                         /*TODO: Handle external orders*/
                         if (msg.dstId == _id || msg.dstId == 255){
                             writeln("Received message type ", 'e', " from id ", msg.srcId);
-                            /*udp_ack_confirm probably shouldnt be called here like this
-                            For testing purposes only.  */
-                            if((msg.ack) && msg.dstId == _id){
-                                udp_ack_confirm(msg);
-                            }
                         }
                         break;
                     case 'i':
