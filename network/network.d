@@ -10,7 +10,6 @@ import  std.array,
         std.datetime,
         core.thread,
         network_peers;
-        //std.typecons, std.traits, std.meta,
 
 private __gshared ushort        broadcastport       = 19668;
 private __gshared ushort        com_port            = 19667;
@@ -29,7 +28,6 @@ ubyte id(){
     return _id;
 }
 
-
 void network_init(){
     string[] configContents;
     try {
@@ -42,7 +40,8 @@ void network_init(){
             "net_com_port",             &com_port,
             "net_peer_timeout",         &timeout_ms,
             "net_peer_interval",        &interval_ms,
-            "net_peer_id",              &id_str
+            "net_peer_id",              &id_str,
+            "net_retransmit_count",     &retransmit_count
         );
 
         writeln("Network init complete, config file read successfully");
@@ -64,16 +63,6 @@ void network_init(){
             .splitter('.')
             .array[$-1]
             .to!ubyte;
-
-            //addr.toHostNameString doesn't work for some reason on linux
-            /*
-            auto a = new InternetAddress(30005);
-            auto hostName = a.toHostNameString;
-            auto serverip = getAddress(hostName); //server hostname
-            auto serverip[1]
-                .splitter(':');
-            */
-
         }
         catch(Exception e){
             writeln("Unable to resolve id:\n", e.msg);}
@@ -84,19 +73,19 @@ void network_init(){
 
 struct Udp_msg{
         ubyte     srcId     = 0;
-        ubyte     dstId     = 0;
+        ubyte     dstId     = 255;  //255: broadcast
         char      msgtype   = 0;    //"i" || "e" || "a" (internal / external / ack)
         int       floor     = 0;    //floor of order
         int       bid       = 0;    //bid for order
-        int       fines     = 0;    //"targetID"
-        int       ack       = 0;    //1: message must be ACKed
+        ubyte     fines     = 0;    //"targetID"
+        bool      ack       = 0;    //1: message must be ACKed
         int       ack_id    = 0;
 }
 
-struct Udp_safe_msg{
+struct Udp_msg_owner{
     Udp_msg msg;
+    Tid owner_thread;
 }
-
 
 string udp_msg_to_string(Udp_msg msg){
     string str = to!string(msg.srcId)
@@ -119,8 +108,8 @@ Udp_msg string_to_udp_msg(string str){
           msg.msgtype   = to!char(temp[2]);
           msg.floor     = to!int(temp[3]);
           msg.bid       = to!int(temp[4]);
-          msg.fines     = to!int(temp[5]);
-          msg.ack       = to!int(temp[6]);
+          msg.fines     = to!ubyte(temp[5]);
+          msg.ack       = to!bool(temp[6]);
           msg.ack_id    = to!int(temp[7]);
       }
       else{writeln("Corrupt message format");}
@@ -128,12 +117,6 @@ Udp_msg string_to_udp_msg(string str){
 }
 
 void Udp_tx(){
-    /*Simple transmit should work. Sends a Udp_msg type, converted to string
-    over UDP.
-    Use: txTid.send(msg). Must be run as own thread.
-    Does not wait for ack. Sends message only once.
-    Use udp_send / udp_send_safe functions */
-
     scope(exit) writeln(__FUNCTION__, " died");
     try {
 
@@ -165,7 +148,6 @@ void Udp_rx(){
 
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-
     sock.bind(addr);
 
     while(true){
@@ -182,31 +164,26 @@ void Udp_rx(){
 
 void udp_safe_send_handler(){
     scope(exit) writeln(__FUNCTION__, " died");
-    /*TODO: receive PeerList updates, deactivate tx for any threads trying to
-    send to an id not in peerlist.
-    Also need to keep track of which process sends which message so it can
-    get a message back when acked*/
     try{
     Tid[int] active_senders;
     PeerList peers;
     while(true){
         receive(
-            (Udp_msg msg){
-                switch(msg.msgtype){
-                    case 'a':
-                        if (msg.ack_id in active_senders){
-                            active_senders[msg.ack_id].send(msg);
+            (Udp_msg msg){              //Receiving acks
+                if (msg.ack_id in active_senders){
+                    active_senders[msg.ack_id].send(msg);
+                }
+            },
+            (Udp_msg_owner owner_msg){  //Sending messages
+                Udp_msg msg = owner_msg.msg;
+                Tid msg_owner_thread = owner_msg.owner_thread;
+                if (msg.ack_id !in active_senders){                     //check if thread already exist
+                    foreach(id;peers){
+                        if (msg.dstId == id || msg.dstId == 255){       //check if dstId is alive/connected, or broadcast msg
+                            active_senders[msg.ack_id] = spawn(&udp_safe_sender, msg, msg_owner_thread);
                         }
-                        break;
-                    default:
-                        if (msg.ack_id !in active_senders){ //check if thread already exist
-                            foreach(id;peers){//check if dstId is alive/connected, or broadcast msg
-                                if (msg.dstId == id || msg.dstId == 255){
-                                    active_senders[msg.ack_id] = spawn(&udp_safe_sender, msg);
-                                }
-                            }
-                        }
-                        break;
+                        else{msg_owner_thread.send(false); }            //automatic nack if reciever not alive
+                    }
                 }
             },
             (int acked_ack_id) {
@@ -218,8 +195,8 @@ void udp_safe_send_handler(){
     } catch(Throwable t){ t.writeln;  throw t; }
 }
 
-void udp_safe_sender(Udp_msg msg){
-    scope(exit) writeln(__FUNCTION__, " died");
+void udp_safe_sender(Udp_msg msg, Tid msg_owner_thread){
+    //scope(exit) writeln(__FUNCTION__, " died");
     try{
             bool ack = false;
             bool txEnable = true;
@@ -239,26 +216,31 @@ void udp_safe_sender(Udp_msg msg){
                     if (ack){break;}
             }
             ownerTid.send(msg.ack_id);
+            msg_owner_thread.send(ack);
         }catch(Throwable t){ t.writeln;  throw t; }
 }
 
 
 void udp_send(Udp_msg msg){
-    txThread.send(msg);
+        msg.srcId = _id;
+        txThread.send(msg);
 }
 
-struct Udp_msg_owner{
-    Udp_msg msg;
-    Tid owner_thread;
-}
-
-void udp_send_safe(Udp_msg msg){
-    msg.ack = 1;
-    if (!msg.ack_id){
-        /*TODO: Create random/unique ack_id*/
-    }
-    Udp_msg_owner msg_owner;
-    safeTxThread.send(msg);
+void udp_send_safe(Udp_msg msg, Tid msg_owner_thread){
+        msg.srcId = _id;
+        msg.ack = true;
+        if (!msg.ack_id){
+                /*TODO: Create better random/unique ack_id?
+                ack_id made by multiplying "random" prime numbers with
+                message parameters to create unique id per message.
+                This way, 2 identical msg will get same id, only if identical*/
+                msg.ack_id = 373 * msg.dstId + 1033 * msg.floor
+                        + 2287 * to!int(msg.msgtype) + 787 * msg.bid;
+        }
+        Udp_msg_owner msg_owner;
+        msg_owner.msg = msg;
+        msg_owner.owner_thread = msg_owner_thread;
+        safeTxThread.send(msg_owner);
 }
 
 void udp_ack_confirm(Udp_msg received_msg){
@@ -277,14 +259,11 @@ void udp_ack_confirm(Udp_msg received_msg){
 void networkMain(){
     network_init();
     auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
-
-    txThread        = spawn(&Udp_tx);
-    rxThread        = spawn(&Udp_rx);
-    safeTxThread    = spawn(&udp_safe_send_handler);
-
+    txThread                  = spawn(&Udp_tx);
+    rxThread                  = spawn(&Udp_rx);
+    safeTxThread              = spawn(&udp_safe_send_handler);
 
     Thread.sleep(250.msecs); //wait for all threads to start...
-
 
     while(true){
         receive(
