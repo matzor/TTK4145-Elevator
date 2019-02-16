@@ -207,14 +207,13 @@ void udp_safe_sender(Udp_msg msg, Tid msg_owner_thread){
                 udp_send(msg);
                 receiveTimeout(interval,
                     (Udp_msg answer_msg){
-                        if((msg.ack_id == answer_msg.ack_id) && (answer_msg.dstId == msg.srcId))
+                        if((msg.ack_id == answer_msg.ack_id) && ((answer_msg.dstId == msg.srcId)||(answer_msg.dstId == 255)))
                         {
                             ack = true;
                         }
                     }
                     );
                     if (ack){
-                            writeln("Sender thread got ack");
                             break;
                     }
             }
@@ -281,7 +280,7 @@ void networkMain(){
 
                 /*udp_ack_confirm probably shouldnt be called here like this
                 For testing purposes only.  */
-                if((msg.ack) && (msg.dstId == _id)) {
+                if((msg.ack) && ((msg.dstId == _id) || (msg.dstId || 255))) {
                     udp_ack_confirm(msg);
                 }
 
