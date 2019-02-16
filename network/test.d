@@ -9,7 +9,7 @@ int main(){
     Thread.sleep(500.msecs);
 
     Udp_msg test_msg;
-    test_msg.dstId = 255;
+    test_msg.dstId = id();
     test_msg.msgtype = 'e';
     test_msg.floor = 3;
     test_msg.bid = 100;

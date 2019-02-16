@@ -181,8 +181,9 @@ void udp_safe_send_handler(){
                     foreach(id;peers){
                         if (msg.dstId == id || msg.dstId == 255){       //check if dstId is alive/connected, or broadcast msg
                             active_senders[msg.ack_id] = spawn(&udp_safe_sender, msg, msg_owner_thread);
+                            break;
                         }
-                        else{msg_owner_thread.send(false); }            //automatic nack if reciever not alive
+                        //else{msg_owner_thread.send(false); }            //automatic nack if reciever not alive
                     }
                 }
             },
@@ -199,21 +200,20 @@ void udp_safe_sender(Udp_msg msg, Tid msg_owner_thread){
     //scope(exit) writeln(__FUNCTION__, " died");
     try{
             bool ack = false;
-            bool txEnable = true;
             for (int i = 0; i < retransmit_count; i++){
-                if (txEnable){
-                    udp_send(msg);
-                }
+                udp_send(msg);
                 receiveTimeout(interval,
                     (Udp_msg answer_msg){
-                        if((msg.ack_id == answer_msg.ack_id) && ((answer_msg.dstId == msg.srcId) || msg.dstId == 255))
+                        if((msg.ack_id == answer_msg.ack_id) && (answer_msg.dstId == msg.srcId))
                         {
                             ack = true;
                         }
-                    },
-                    (TxEnable t) {txEnable = t;}
+                    }
                     );
-                    if (ack){break;}
+                    if (ack){
+                            writeln("Sender thread got ack");
+                            break;
+                    }
             }
             ownerTid.send(msg.ack_id);
             msg_owner_thread.send(ack);
@@ -234,8 +234,8 @@ void udp_send_safe(Udp_msg msg, Tid msg_owner_thread){
                 ack_id made by multiplying "random" prime numbers with
                 message parameters to create unique id per message.
                 This way, 2 identical msg will get same id, only if identical*/
-                msg.ack_id = 373 * msg.dstId + 1033 * msg.floor
-                        + 2287 * to!int(msg.msgtype) + 787 * msg.bid;
+                msg.ack_id = 373 * msg.dstId + 113 * msg.floor
+                        + 197 * to!int(msg.msgtype) + 131 * msg.bid;
         }
         Udp_msg_owner msg_owner;
         msg_owner.msg = msg;
@@ -278,7 +278,7 @@ void networkMain(){
 
                 /*udp_ack_confirm probably shouldnt be called here like this
                 For testing purposes only.  */
-                if((msg.ack) && (msg.dstId == _id) || (msg.dstId == 255)){
+                if((msg.ack) && (msg.dstId == _id)) {
                     udp_ack_confirm(msg);
                 }
 
@@ -287,20 +287,20 @@ void networkMain(){
                     case 'e':
                         /*TODO: Handle external orders*/
                         if (msg.dstId == _id || msg.dstId == 255){
-                            writeln("Received message type ", 'e', " from id ", msg.srcId);
+                                //writeln("Received message type ", 'e', " from id ", msg.srcId);
                         }
                         break;
                     case 'i':
                         /*TODO: Handle internal orders*/
                         if (msg.dstId == _id || msg.dstId == 255){
-                            writeln("Received message type ", 'i', " from id ", msg.srcId);
+                                //writeln("Received message type ", 'i', " from id ", msg.srcId);
                         }
                         break;
                     case 'a':
                         /*TODO: Handle ack messages*/
                         if (msg.dstId == _id || msg.dstId == 255){
-                            writeln("Received message type ", 'a', " from id ", msg.srcId);
-                            safeTxThread.send(msg);
+                                safeTxThread.send(msg);
+                                writeln("Received message type ", 'a', " from id ", msg.srcId);
                         }
                         break;
                     default:
