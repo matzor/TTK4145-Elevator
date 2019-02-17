@@ -56,7 +56,7 @@ void network_init(){
     //Default id is last segment of ip address
     if(id_str == "default"){
         try{
-            //This method assumes internet-connection, fix this??
+            //TODO: This method assumes internet-connection, fix this??
             _id = new TcpSocket(new InternetAddress("google.com", 80))
             .localAddress
             .toAddrString
@@ -116,7 +116,7 @@ Udp_msg string_to_udp_msg(string str){
       return msg;
 }
 
-void Udp_tx(){
+void udp_tx(){
     scope(exit) writeln(__FUNCTION__, " died");
     try {
 
@@ -138,7 +138,7 @@ void Udp_tx(){
 }
 
 
-void Udp_rx(){
+void udp_rx(){
     scope(exit) writeln(__FUNCTION__, " died");
     try {
 
@@ -207,7 +207,7 @@ void udp_safe_sender(Udp_msg msg, Tid msg_owner_thread){
                 udp_send(msg);
                 receiveTimeout(interval,
                     (Udp_msg answer_msg){
-                        if((msg.ack_id == answer_msg.ack_id) && ((answer_msg.dstId == msg.srcId)||(answer_msg.dstId == 255)))
+                        if((msg.ack_id == answer_msg.ack_id) && ((answer_msg.dstId == msg.srcId)||(msg.dstId == 255)))
                         {
                             ack = true;
                         }
@@ -261,8 +261,8 @@ void udp_ack_confirm(Udp_msg received_msg){
 void networkMain(){
     network_init();
     auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
-    txThread                  = spawn(&Udp_tx);
-    rxThread                  = spawn(&Udp_rx);
+    txThread                  = spawn(&udp_tx);
+    rxThread                  = spawn(&udp_rx);
     safeTxThread              = spawn(&udp_safe_send_handler);
 
     Thread.sleep(250.msecs); //wait for all threads to start...
@@ -280,7 +280,7 @@ void networkMain(){
 
                 /*udp_ack_confirm probably shouldnt be called here like this
                 For testing purposes only.  */
-                if((msg.ack) && ((msg.dstId == _id) || (msg.dstId || 255))) {
+                if((msg.ack) && ((msg.dstId == id()) || (msg.dstId || 255))) {
                     udp_ack_confirm(msg);
                 }
 
