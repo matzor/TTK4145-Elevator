@@ -41,7 +41,7 @@ void network_init(){
             "net_peer_timeout",         &timeout_ms,
             "net_peer_interval",        &interval_ms,
             "net_peer_id",              &id_str,
-            "net_retransmit_count",     &retransmit_count
+            "net_retransmit_count",     &retransmit_count,
         );
 
         writeln("Network init complete, config file read successfully");
@@ -74,12 +74,12 @@ void network_init(){
 struct Udp_msg{
         ubyte     srcId     = 0;
         ubyte     dstId     = 255;  //255: broadcast
-        char      msgtype   = 0;    //"i" || "e" || "a" (internal / external / ack)
+        char      msgtype   = 0;    //'i' || 'e' || 'c' || 'a'  (internal / external / confirmed / ack)
         int       floor     = 0;    //floor of order
         int       bid       = 0;    //bid for order
         ubyte     fines     = 0;    //"targetID"
-        bool      ack       = 0;    //1: message must be ACKed
-        int       ack_id    = 0;
+        bool      ack       = 0;    //true: message must be ACKed
+        int       ack_id    = 0;    //unique id for each message sent
 }
 
 struct Udp_msg_owner{
@@ -294,8 +294,12 @@ void networkMain(){
                             /*TODO: Handle internal orders*/
                             writeln("Received message type INTERNAL from id ", msg.srcId);
                             break;
+                        case 'c':
+                            /*TODO: Handle confirmed orders*/
+                            writeln("Received message type CONFIRMED from id ", msg.srcId);
+                            break;
                         case 'a':
-                            /*TODO: Handle ack messages*/
+                            /*Ack messages used internally for udp transmission only*/
                             safeTxThread.send(msg);
                             writeln("Received message type ACK from id ", msg.srcId);
                             break;

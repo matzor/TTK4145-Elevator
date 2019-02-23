@@ -23,7 +23,11 @@ void init_network_peers(ushort port, ubyte id, Duration interval, Duration timeo
     broadcastport = port; _id = id; broadcast_interval = 5*interval; receive_timeout = 5*timeout;
     auto broadcastTxThread = spawn(&broadcast_tx);
     auto broadcastRxThread = spawn(&broadcast_rx, ownerTid);
-    while(true){}
+    while(true){
+        receiveTimeout(broadcast_interval,
+                (Variant v) {}
+            );
+    }
 }
 
 /*Continually broadcasts own id on designated (broadcast)port every
