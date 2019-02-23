@@ -1,6 +1,6 @@
-import std.stdio, std.algorithm;
-
+import std.stdio, std.container;
+import std.algorithm;
+import std.array;
 void main(){
-	ulong a;
-	writeln(size_t(a));
+	writeln(a);
 }
