@@ -280,29 +280,29 @@ void networkMain(){
 
                 /*udp_ack_confirm probably shouldnt be called here like this
                 For testing purposes only.  */
-                if((msg.ack) && ((msg.dstId == id()) || (msg.dstId || 255))) {
-                    udp_ack_confirm(msg);
-                }
+
 
                 switch(msg.msgtype)
                 {
                     case 'e':
                         /*TODO: Handle external orders*/
                         if (msg.dstId == _id || msg.dstId == 255){
-                                //writeln("Received message type ", 'e', " from id ", msg.srcId);
+                            if (msg.srcId != id()) {udp_ack_confirm(msg);}
+                                writeln("Received message type EXTERNAL from id ", msg.srcId);
                         }
                         break;
                     case 'i':
                         /*TODO: Handle internal orders*/
                         if (msg.dstId == _id || msg.dstId == 255){
-                                //writeln("Received message type ", 'i', " from id ", msg.srcId);
+                            if (msg.srcId != id()) {udp_ack_confirm(msg);}
+                                writeln("Received message type INTERNAL from id ", msg.srcId);
                         }
                         break;
                     case 'a':
                         /*TODO: Handle ack messages*/
                         if (msg.dstId == _id || msg.dstId == 255){
                                 safeTxThread.send(msg);
-                                writeln("Received message type ", 'a', " from id ", msg.srcId);
+                                writeln("Received message type ACK from id ", msg.srcId);
                         }
                         break;
                     default:
