@@ -41,7 +41,7 @@ void network_init(){
             "net_peer_timeout",         &timeout_ms,
             "net_peer_interval",        &interval_ms,
             "net_peer_id",              &id_str,
-            "net_retransmit_count",     &retransmit_count
+            "net_retransmit_count",     &retransmit_count,
         );
 
         writeln("Network init complete, config file read successfully");
@@ -74,12 +74,12 @@ void network_init(){
 struct Udp_msg{
         ubyte     srcId     = 0;
         ubyte     dstId     = 255;  //255: broadcast
-        char      msgtype   = 0;    //"i" || "e" || "a" (internal / external / ack)
+        char      msgtype   = 0;    //'i' || 'e' || 'c' || 'a'  (internal / external / confirmed / ack)
         int       floor     = 0;    //floor of order
         int       bid       = 0;    //bid for order
         ubyte     fines     = 0;    //"targetID"
-        bool      ack       = 0;    //1: message must be ACKed
-        int       ack_id    = 0;
+        bool      ack       = 0;    //true: message must be ACKed
+        int       ack_id    = 0;    //unique id for each message sent
 }
 
 struct Udp_msg_owner{
@@ -214,7 +214,7 @@ void udp_safe_sender(Udp_msg msg, Tid msg_owner_thread){
                     }
                     );
                     if (ack){
-                            break;
+                        break;
                     }
             }
             ownerTid.send(msg.ack_id);
@@ -246,16 +246,20 @@ void udp_send_safe(Udp_msg msg, Tid msg_owner_thread){
 }
 
 void udp_ack_confirm(Udp_msg received_msg){
-    Udp_msg msg;
-    msg.srcId = _id;
-    msg.dstId = received_msg.srcId;
-    msg.msgtype = 'a';
-    msg.floor = 0;
-    msg.bid = 0;
-    msg.fines = 0;
-    msg.ack = 0;
-    msg.ack_id = received_msg.ack_id;
-    udp_send(msg);
+    /*Will send ack msg if message directed at this host OR broadcast
+      messages not sent by this host  */
+    if ((received_msg.ack) && ((received_msg.dstId == id()) || (received_msg.srcId != id()))){
+        Udp_msg msg;
+        msg.srcId = _id;
+        msg.dstId = received_msg.srcId;
+        msg.msgtype = 'a';
+        msg.floor = 0;
+        msg.bid = 0;
+        msg.fines = 0;
+        msg.ack = 0;
+        msg.ack_id = received_msg.ack_id;
+        udp_send(msg);
+    }
 }
 
 void networkMain(){
@@ -265,7 +269,7 @@ void networkMain(){
     rxThread                  = spawn(&udp_rx);
     safeTxThread              = spawn(&udp_safe_send_handler);
 
-    Thread.sleep(250.msecs); //wait for all threads to start...
+    Thread.sleep(500.msecs); //wait for all threads to start...
 
     while(true){
         receive(
@@ -277,39 +281,34 @@ void networkMain(){
             },
             (Udp_msg msg){
                 /*TODO: Handle UDP message*/
-
-                /*udp_ack_confirm probably shouldnt be called here like this
-                For testing purposes only.  */
-                if((msg.ack) && ((msg.dstId == id()) || (msg.dstId || 255))) {
+                if (msg.dstId == _id || msg.dstId == 255){
                     udp_ack_confirm(msg);
-                }
 
-                switch(msg.msgtype)
-                {
-                    case 'e':
-                        /*TODO: Handle external orders*/
-                        if (msg.dstId == _id || msg.dstId == 255){
-                                //writeln("Received message type ", 'e', " from id ", msg.srcId);
-                        }
-                        break;
-                    case 'i':
-                        /*TODO: Handle internal orders*/
-                        if (msg.dstId == _id || msg.dstId == 255){
-                                //writeln("Received message type ", 'i', " from id ", msg.srcId);
-                        }
-                        break;
-                    case 'a':
-                        /*TODO: Handle ack messages*/
-                        if (msg.dstId == _id || msg.dstId == 255){
-                                safeTxThread.send(msg);
-                                writeln("Received message type ", 'a', " from id ", msg.srcId);
-                        }
-                        break;
-                    default:
-                        /*TODO: Handle invalid message type*/
-                        writeln("Invalid message type");
-                        break;
-                }
+                    switch(msg.msgtype)
+                    {
+                        case 'e':
+                            /*TODO: Handle external orders*/
+                            writeln("Received message type EXTERNAL from id ", msg.srcId);
+                            break;
+                        case 'i':
+                            /*TODO: Handle internal orders*/
+                            writeln("Received message type INTERNAL from id ", msg.srcId);
+                            break;
+                        case 'c':
+                            /*TODO: Handle confirmed orders*/
+                            writeln("Received message type CONFIRMED from id ", msg.srcId);
+                            break;
+                        case 'a':
+                            /*Ack messages used internally for udp transmission only*/
+                            safeTxThread.send(msg);
+                            writeln("Received message type ACK from id ", msg.srcId);
+                            break;
+                        default:
+                            /*TODO: Handle invalid message type*/
+                            writeln("Invalid message type");
+                            break;
+                    }
+            }
         }
         );
     }
