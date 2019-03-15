@@ -32,7 +32,6 @@ void network_init(){
         getopt( configContents,
             std.getopt.config.passThrough,
             "net_bcast_port",           &broadcastport,
-            "net_bcast_recvFromSelf",   &recvFromSelf,
             "net_com_port",             &com_port,
             "net_peer_timeout",         &timeout_ms,
             "net_peer_interval",        &interval_ms,
