@@ -44,7 +44,7 @@ void broadcast_tx(){
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
 
     bool txEnable = true;
-    writeln("Ready to broadcast on port ", broadcastport);
+    writeln(__FUNCTION__, " started");
     writeln("Broadcasting id: ", buf);
     while(true){
         receiveTimeout(broadcast_interval,
@@ -79,7 +79,7 @@ void broadcast_rx(Tid parent_thread_id){
         SocketOption.RCVTIMEO, receive_timeout);   //sets timeout on receive
 
     sock.bind(addr);
-    writeln("Ready to listen on port ", broadcastport);
+    writeln(__FUNCTION__, " started");
 
     while(true){
         listHasChanges  = false;

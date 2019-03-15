@@ -19,11 +19,8 @@ int main(){
 
 
     while(true){
-        network.udp_send_safe(test_msg, thisTid);
-        receiveTimeout(550.msecs,
-            (bool ack) {writeln("Watchdog got ack: ", ack); }
-            );
-        Thread.sleep(700.msecs);
+        udp_send(test_msg);
+        Thread.sleep(500.msecs);
     }
 
     return 0;
