@@ -1,13 +1,20 @@
 import std.stdio, std.conv, std.concurrency;
 
-import elevio;
+import elevio, orders;
 
 struct ElevatorControllerLog {
     string message;
     alias message this;
 }
 
-void controlElevator (Tid loggerTid) {
+NewOrderRequest button_to_order (CallButton btn) {
+	NewOrderRequest n;
+	n.floor = btn.floor;
+	switch(btn.call) { 
+	}
+}
+
+void run_movement (Tid loggerTid, Tid order_list_thread) {
     void log(string msg) {
         loggerTid.send(ElevatorControllerLog(msg));
     }
@@ -17,9 +24,12 @@ void controlElevator (Tid loggerTid) {
 
     while(true){
         receive(
-            (CallButton call_btn){
-                log("Call button pressed on floor "~to!string(call_btn.floor)~". Call type "~to!string(call_btn.call)~".");
-                target_floor = call_btn.floor;
+			(CallButton btn) {
+				order_list_thread.send(NewOrderRequest(btn.floor, btn.call));
+			},
+            (TargetFloor new_target){
+                target_floor = new_target;
+                log("Call button pressed on floor "~to!string(target_floor));
                 if (target_floor > current_floor) {
                     motorDirection(Dirn.up);
                 } else if (target_floor < current_floor) {
