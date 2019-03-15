@@ -63,8 +63,9 @@ class OrderList {
 		next_stop = next_stop.next;
 	}
 	
-	this(int numfloors) {
+	this(int numfloors,int start_floor) {
 		o_list = order_queue_init(numfloors);
+		next_stop=o_list[start_floor];	
 	}
 	Order[] order_queue_init(int number_of_floors){
 		Order[] queue;
@@ -79,27 +80,36 @@ class OrderList {
 			queue[i].next = queue[i+1];
 		}
 		queue.back.next = queue[0];
-		next_stop=queue[0]; //TODO: where to start elevator?
 		return queue; 
 	}
 }
 
 void main(){
 	import std.stdio;
-	auto test= new OrderList(11);
+	auto test= new OrderList(11,0);
 	test.set_order(4,test.Direction.Down);
 	test.set_order(9,test.Direction.Up);
 	test.set_order(2,test.Direction.Cab);
 	test.set_order(2,test.Direction.Down);
 	test.set_order(3,test.Direction.Down);
-	int c_floor;
+	int t_floor;
+	int c_floor=0;
+	test.Direction dir;
 	while(1){
-		c_floor=test.get_next_order_floor();
-		writeln(c_floor);
-		if(c_floor==-1){
+		
+		t_floor=test.get_next_order_floor();
+		if(t_floor==-1){
 			break;
 		}
-		test.finish_order(c_floor,test.Direction.Up);
-		test.finish_order(c_floor,test.Direction.Down);
+		test.finish_order(t_floor,dir);
+		if(t_floor>c_floor){
+			dir=test.Direction.Up;
+		}
+		else if(t_floor<c_floor){
+			dir=test.Direction.Down;
+		}
+		writeln("Current: ",c_floor, ", Target: ",t_floor, ", Dir: ", dir);
+		
+		c_floor=t_floor;
 	}	
 }
