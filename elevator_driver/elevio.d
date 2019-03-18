@@ -7,13 +7,6 @@ import std.stdio;
 import core.sync.mutex;
 import core.thread;
 
-
-enum Call : int {
-    hallUp,
-    hallDown,
-    cab
-}
-
 enum HallCall : int {
     up,
     down
@@ -26,7 +19,27 @@ enum Dirn : int {
 }
 
 
-
+struct CallButton {
+	enum Call : int {
+		hallUp,
+		hallDown,
+		cab,
+	}
+    int floor;
+    Call call;
+}
+struct FloorSensor {
+    int floor;
+    alias floor this;
+}
+struct StopButton {
+    bool stop;
+    alias stop this;
+}
+struct Obstruction {
+    bool obstruction;
+    alias obstruction this;
+}
 
 
 private __gshared TcpSocket sock;
@@ -46,7 +59,7 @@ void initElevIO(string ip, ushort port, int numFloors){
 
 
     // Reset lights
-    for(auto c = Call.min; c <= Call.max; c++){
+    for(auto c = CallButton.Call.min; c <= CallButton.Call.max; c++){
         foreach(f; 0..numFloors){
             callButtonLight(f, c, false);
         }
@@ -68,32 +81,11 @@ shared static ~this(){
     motorDirection(Dirn.stop);
 }
 
-
-
-
-struct CallButton {
-    int floor;
-    Call call;
-}
-struct FloorSensor {
-    int floor;
-    alias floor this;
-}
-struct StopButton {
-    bool stop;
-    alias stop this;
-}
-struct Obstruction {
-    bool obstruction;
-    alias obstruction this;
-}
-
-
 void pollCallButtons(Tid receiver){
-    bool[][] call = new bool[][](numFloors, Call.max+1);
+    bool[][] call = new bool[][](numFloors, CallButton.Call.max+1);
     while(true){
         Thread.sleep(pollRate);
-        for(auto c = Call.min; c <= Call.max; c++){
+        for(auto c = CallButton.Call.min; c <= CallButton.Call.max; c++){
             foreach(f; 0..numFloors){
                 if(call[f][c] != (call[f][c] = callButton(f, c))  &&  call[f][c]){
                     receiver.send(CallButton(f, c));
@@ -143,7 +135,7 @@ void motorDirection(Dirn d){
     }
 }
 
-void callButtonLight(int floor, Call call, bool on){
+void callButtonLight(int floor, CallButton.Call call, bool on){
     ubyte[4] buf = [2, cast(ubyte)call, cast(ubyte)floor, cast(ubyte)on];
     synchronized(mtx){
         sock.send(buf);
@@ -174,7 +166,7 @@ void stopButtonLight(bool on){
 
 
 
-bool callButton(int floor, Call call){
+bool callButton(int floor, CallButton.Call call){
     ubyte[4] buf = [6, cast(ubyte)call, cast(ubyte)floor, 0];
     synchronized(mtx){
         sock.send(buf);

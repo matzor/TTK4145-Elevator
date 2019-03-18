@@ -10,8 +10,9 @@ struct ElevatorControllerLog {
 NewOrderRequest button_to_order (CallButton btn) {
 	NewOrderRequest n;
 	n.floor = btn.floor;
-	switch(btn.call) { 
-	}
+	n.call=btn.call;
+	//TODO: remove this maybe? n=btn
+	return n;
 }
 
 void run_movement (Tid loggerTid, Tid order_list_thread) {
@@ -61,7 +62,7 @@ void main(){
 
     initElevIO("localhost", 15657, 4);
 
-    Tid elevatorController = spawn(&controlElevator, thisTid);
+    Tid elevatorController = spawn(&run_movement, thisTid, thisTid); //TODO: Add order_list_tid
 
 
     spawn(&pollCallButtons, elevatorController);

@@ -1,46 +1,22 @@
 import std.array,std.range;
 import std.stdio;
 import std.concurrency;
+import elevio;
 
-enum Direction {
-	Up,
-	Down,
-	Cab,	// only used for orders
-}
-
-enum Call : int {
-    hallUp,
-    hallDown,
-    cab
-}
 
 enum HallCall : int {
     up,
     down
 }
 
-enum Dirn : int {
-    down    = -1,
-    stop    = 0,
-    up      = 1
-}
-
-
-
-
-struct FloorSensor {
-	int floor;
-	alias floor this;
-}
-
 struct MotorDirUpdate {
-	Direction dir;
+	Dirn dir;
 	alias dir this;
 }
 
 struct NewOrderRequest {
 	int floor;
-	Direction dir;
+	CallButton.Call call;
 }
 
 struct TargetFloor {
@@ -51,13 +27,13 @@ struct TargetFloor {
 class OrderList {
 	class Order{
 		public int floor;
-		public Direction dir;
+		public CallButton.Call call;
 		public bool order_here;
 		public bool cab_here;
 		public Order next;
-		this(int floor, Direction dir){
+		this(int floor, CallButton.Call call){
 			this.floor = floor;
-			this.dir = dir;
+			this.call = call;
 			this.order_here=0;
 			this.cab_here=0;
 		}
@@ -65,12 +41,12 @@ class OrderList {
 	private Order[] o_list;
 	private Order next_stop;
 
-	private Order get_order(int floor, Direction dir) {
+	private Order get_order(int floor, CallButton.Call call) {
 		Order iter = next_stop;
 		do{
 			if (floor==iter.floor) {
-				if (dir == Direction.Cab) return iter;
-				if (dir == iter.dir) return iter;
+				if (call == CallButton.Call.cab) return iter;
+				if (call == iter.call) return iter;
 			}
 			iter = iter.next;
 		}while (iter != next_stop); 
@@ -88,17 +64,17 @@ class OrderList {
 		return -1;
 	}
 
-	void set_order(int floor, Direction dir) {
-		Order order = get_order(floor, dir);
-		if (dir == Direction.Cab) {
+	void set_order(int floor, CallButton.Call call) {
+		Order order = get_order(floor, call);
+		if (call == CallButton.Call.cab) {
 			order.cab_here = true;
 		} else {
 			order.order_here = true;
 		}
 	}
 	
-	void finish_order (int floor, Direction dir) {
-		Order order = get_order(floor, dir);
+	void finish_order (int floor, CallButton.Call call) {
+		Order order = get_order(floor, call);
 		order.cab_here = false;
 		order.order_here = false;
 		next_stop = next_stop.next;
@@ -112,10 +88,10 @@ class OrderList {
 		Order[] queue;
 	
 		foreach(floor; 0 .. number_of_floors-1){
-			queue~=new Order(floor, Direction.Up);
+			queue~=new Order(floor, CallButton.Call.hallUp);
 		}
 		for(int floor=number_of_floors; floor>1; floor-- ){
-	 		queue~=new Order(floor, Direction.Down);
+	 		queue~=new Order(floor, CallButton.Call.hallDown);
 		}
 		for (int i=0; i<queue.length-1; i++) {
 			queue[i].next = queue[i+1];
@@ -128,12 +104,26 @@ class OrderList {
 void run_order_list (int numfloors, int startfloor, Tid movement_thread) {
 	auto orderlist = new OrderList(numfloors, startfloor);
 	int floor = startfloor;
-	Direction motor_dir = Direction.Up;
+	Dirn motor_dir = Dirn.up;
 	while(1) {
 		receive(
 			(FloorSensor f) {
 				floor = f;
-				orderlist.finish_order(floor, motor_dir);
+				CallButton.Call dir_to_calldir;
+				switch(motor_dir){
+					case(Dirn.up):
+						dir_to_calldir=CallButton.Call.hallUp;
+						break;	
+					case(Dirn.down):
+						dir_to_calldir=CallButton.Call.hallDown;
+						break;
+					default:
+						//nothing happen
+						break;
+				}
+						
+
+				orderlist.finish_order(floor, dir_to_calldir);
 				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
 			},
 			(MotorDirUpdate m) {
