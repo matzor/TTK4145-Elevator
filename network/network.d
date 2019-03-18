@@ -8,19 +8,17 @@ import  std.array,
         std.stdio,
         std.string,
         std.datetime,
-        core.thread,
         network_peers;
 
 private __gshared ushort        broadcastport       = 19668;
 private __gshared ushort        com_port            = 19667;
-private __gshared int           recvFromSelf        = 0;
 private __gshared int           interval_ms         = 100;
 private __gshared Duration      interval;
 private __gshared int           timeout_ms          = 550;
 private __gshared Duration      timeout;
 private __gshared string        id_str              = "default";
 private __gshared ubyte         _id;
-private __gshared int           retransmit_count    = 5;
+private __gshared int           retransmit_count    = 5;        //TODO: do we need this anymore?
 private __gshared Tid           txThread, rxThread;
 
 ubyte id(){
@@ -34,7 +32,6 @@ void network_init(){
         getopt( configContents,
             std.getopt.config.passThrough,
             "net_bcast_port",           &broadcastport,
-            "net_bcast_recvFromSelf",   &recvFromSelf,
             "net_com_port",             &com_port,
             "net_peer_timeout",         &timeout_ms,
             "net_peer_interval",        &interval_ms,
@@ -69,8 +66,7 @@ struct Udp_msg{
         int       floor     = 0;    //floor of order
         int       bid       = 0;    //bid for order
         ubyte     fines     = 0;    //"targetID"
-        bool      ack       = 0;    //true: message must be ACKed
-        int       ack_id    = 0;    //unique id for each message sent
+        bool      ack       = 0;    //true: message must be ACKed. Don't actually use acking anymore yo
 }
 
 
@@ -81,15 +77,14 @@ string udp_msg_to_string(Udp_msg msg){
         ~ "," ~ to!string(msg.floor)
         ~ "," ~ to!string(msg.bid)
         ~ "," ~ to!string(msg.fines)
-        ~ "," ~ to!string(msg.ack)
-        ~ "," ~ to!string(msg.ack_id);
+        ~ "," ~ to!string(msg.ack);
     return str;
 }
 
 Udp_msg string_to_udp_msg(string str){
       Udp_msg msg;
       auto temp     = str.splitter(',').array;
-      if (temp.length >= 7){
+      if (temp.length >= 6){
           msg.srcId     = to!ubyte(temp[0]);
           msg.dstId     = to!ubyte(temp[1]);
           msg.msgtype   = to!char(temp[2]);
@@ -97,58 +92,57 @@ Udp_msg string_to_udp_msg(string str){
           msg.bid       = to!int(temp[4]);
           msg.fines     = to!ubyte(temp[5]);
           msg.ack       = to!bool(temp[6]);
-          msg.ack_id    = to!int(temp[7]);
       }
       else{writeln("Corrupt message format");}
       return msg;
 }
 
 void udp_tx(){
-    scope(exit) writeln(__FUNCTION__, " died");
-    try {
+        scope(exit) writeln(__FUNCTION__, " died");
+        try {
 
-    auto    addr    = new InternetAddress("255.255.255.255", com_port);
-    auto    sock    = new UdpSocket();
+        auto    addr    = new InternetAddress("255.255.255.255", com_port);
+        auto    sock    = new UdpSocket();
 
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-    writeln(__FUNCTION__, " started");
+        sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
+        sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
+        writeln(__FUNCTION__, " started");
 
-    while(true){
+        while(true){
         receive(
             (Udp_msg msg){
                 auto str_msg = udp_msg_to_string(msg);
                 sock.sendTo(str_msg, addr);
             }
             );
-    }
-    }catch(Throwable t){ t.writeln; throw t; }
+        }
+        }catch(Throwable t){ t.writeln; throw t; }
 }
 
 
 void udp_rx(){
-    scope(exit) writeln(__FUNCTION__, " died");
-    try {
+        scope(exit) writeln(__FUNCTION__, " died");
+        try {
 
-    auto              addr    = new InternetAddress(com_port);
-    auto              sock    = new UdpSocket();
-    char[1024]        buf        = "";
+        auto              addr    = new InternetAddress(com_port);
+        auto              sock    = new UdpSocket();
+        char[1024]        buf     = "";
 
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
-    sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-    sock.bind(addr);
-    writeln(__FUNCTION__, " started");
+        sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
+        sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
+        sock.bind(addr);
+        writeln(__FUNCTION__, " started");
 
-    while(true){
-        auto buf_length = sock.receive(buf);
-        if (buf_length>0) {
-            auto received_msg = to!string(buf[0 .. buf_length]);
-            auto msg = string_to_udp_msg(received_msg);
-            ownerTid.send(msg);
+        while(true){
+                auto buf_length = sock.receive(buf);
+                if (buf_length>0) {
+                        auto received_msg = to!string(buf[0 .. buf_length]);
+                        auto msg = string_to_udp_msg(received_msg);
+                        ownerTid.send(msg);
+                }
         }
-    }
 
-    } catch(Throwable t){ t.writeln;  throw t; }
+        } catch(Throwable t){ t.writeln;  throw t; }
 }
 
 void udp_send(Udp_msg msg){
@@ -156,51 +150,48 @@ void udp_send(Udp_msg msg){
         txThread.send(msg);
 }
 
-
 void networkMain(){
-    network_init();
-    auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
-    txThread                  = spawn(&udp_tx);
-    rxThread                  = spawn(&udp_rx);
+        network_init();
+        auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
+        txThread                  = spawn(&udp_tx);
+        rxThread                  = spawn(&udp_rx);
 
+        while(true){
+                receive(
+                (PeerList p){
+                        /*TODO: Handle PeerList updates
+                        what do we even do with this information!?*/
+                        writeln("Received peerlist: ", p);
+                },
 
-    Thread.sleep(500.msecs); //wait for all threads to start... do we need this?
-
-    while(true){
-        receive(
-            (PeerList p){
-                /*TODO: Handle PeerList updates
-                peerlist should be sent to safe_send_handler */
-                writeln("Received peerlist: ", p);
-            },
-            (Udp_msg msg){
-                /*TODO: Handle UDP message*/
-                if (msg.dstId == _id || msg.dstId == 255){
-                    switch(msg.msgtype)
-                    {
-                        case 'e':
-                            /*TODO: Handle external orders*/
-                            writeln("Received message type EXTERNAL from id ", msg.srcId);
-                            break;
-                        case 'i':
-                            /*TODO: Handle internal orders*/
-                            writeln("Received message type INTERNAL from id ", msg.srcId);
-                            break;
-                        case 'c':
-                            /*TODO: Handle confirmed orders*/
-                            writeln("Received message type CONFIRMED from id ", msg.srcId);
-                            break;
-                        case 'a':
-                            /*Ack messages used internally for udp transmission only*/
-                            writeln("Received message type ACK from id ", msg.srcId);
-                            break;
-                        default:
-                            /*TODO: Handle invalid message type*/
-                            writeln("Invalid message type");
-                            break;
+                (Udp_msg msg){
+                        /*TODO: Handle UDP message*/
+                        if (msg.dstId == _id || msg.dstId == 255){
+                            switch(msg.msgtype)
+                            {
+                                case 'e':
+                                    /*TODO: Handle external orders*/
+                                    writeln("Received message type EXTERNAL from id ", msg.srcId);
+                                    break;
+                                case 'i':
+                                    /*TODO: Handle internal orders*/
+                                    writeln("Received message type INTERNAL from id ", msg.srcId);
+                                    break;
+                                case 'c':
+                                    /*TODO: Handle confirmed orders*/
+                                    writeln("Received message type CONFIRMED from id ", msg.srcId);
+                                    break;
+                                case 'a':
+                                    /*Ack messages used internally for udp transmission only*/
+                                    writeln("Received message type ACK from id ", msg.srcId);
+                                    break;
+                                default:
+                                    /*TODO: Handle invalid message type*/
+                                    writeln("Invalid message type");
+                                    break;
+                            }
                     }
-            }
+                }
+                );
         }
-        );
-    }
 }

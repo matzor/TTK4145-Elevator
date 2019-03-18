@@ -20,7 +20,7 @@ struct PeerList {
 }
 
 void init_network_peers(ushort port, ubyte id, Duration interval, Duration timeout){
-    broadcastport = port; _id = id; broadcast_interval = 5*interval; receive_timeout = 5*timeout;
+    broadcastport = port; _id = id; broadcast_interval = interval; receive_timeout = timeout;
     auto broadcastTxThread = spawn(&broadcast_tx);
     auto broadcastRxThread = spawn(&broadcast_rx, ownerTid);
     while(true){
@@ -61,7 +61,8 @@ void broadcast_tx(){
 
 /*Continually listens on the designated (broadcast)port for other peers.
 New peers are added to a list of currently acitve connections. If no message
-from peer before timeout_ms, peer is removed from list of connections. */
+from peer before timeout_ms, peer is removed from list of connections.
+Heavily inspired by D network module example from klasbos github, excersise 4*/
 void broadcast_rx(Tid parent_thread_id){
     scope(exit) writeln(__FUNCTION__, " died");
     try {
@@ -76,7 +77,7 @@ void broadcast_rx(Tid parent_thread_id){
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
     sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
     sock.Socket.setOption(SocketOptionLevel.SOCKET,
-        SocketOption.RCVTIMEO, receive_timeout);   //sets timeout on receive
+        SocketOption.RCVTIMEO, receive_timeout);
 
     sock.bind(addr);
     writeln(__FUNCTION__, " started");
