@@ -68,6 +68,7 @@ class OrderList {
 		Order order = get_order(floor, call);
 		if (call == CallButton.Call.cab) {
 			order.cab_here = true;
+			writeln("set_cab_order");
 		} else {
 			order.order_here = true;
 		}
@@ -106,6 +107,7 @@ void run_order_list (int numfloors, int startfloor, Tid movement_thread) {
 	int floor = startfloor;
 	Dirn motor_dir = Dirn.up;
 	while(1) {
+		writeln("run_orders");
 		receive(
 			(FloorSensor f) {
 				floor = f;

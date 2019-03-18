@@ -61,14 +61,17 @@ void run_movement (Tid loggerTid, Tid order_list_thread) {
 void main(){
 
     initElevIO("localhost", 15657, 4);
+	Tid movement_tid;
+	Tid order_list_tid;
 
-    Tid elevatorController = spawn(&run_movement, thisTid, thisTid); //TODO: Add order_list_tid
+    movement_tid = spawn(&run_movement, thisTid, order_list_tid); 
+	order_list_tid = spawn(&run_order_list,4,1,movement_tid);
 
 
-    spawn(&pollCallButtons, elevatorController);
-    spawn(&pollFloorSensor, elevatorController);
-    spawn(&pollObstruction, elevatorController);
-    spawn(&pollStopButton,  elevatorController);
+    spawn(&pollCallButtons, order_list_tid);
+    spawn(&pollFloorSensor, movement_tid);
+    spawn(&pollObstruction, movement_tid);
+    spawn(&pollStopButton,  movement_tid);
 
     while(true){
         receive(
