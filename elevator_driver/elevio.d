@@ -88,6 +88,7 @@ void pollCallButtons(Tid receiver){
         for(auto c = CallButton.Call.min; c <= CallButton.Call.max; c++){
             foreach(f; 0..numFloors){
                 if(call[f][c] != (call[f][c] = callButton(f, c))  &&  call[f][c]){
+
                     receiver.send(CallButton(f, c));
                 }
             }

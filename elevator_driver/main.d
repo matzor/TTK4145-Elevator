@@ -26,11 +26,12 @@ void run_movement (Tid loggerTid, Tid order_list_thread) {
     while(true){
         receive(
 			(CallButton btn) {
-				order_list_thread.send(NewOrderRequest(btn.floor, btn.call));
+                log("nothing yet");
+//				order_list_thread.send(NewOrderRequest(btn.floor, btn.call));
 			},
             (TargetFloor new_target){
                 target_floor = new_target;
-                log("Call button pressed on floor "~to!string(target_floor));
+                log("Got new order to floor "~to!string(target_floor));
                 if (target_floor > current_floor) {
                     motorDirection(Dirn.up);
                 } else if (target_floor < current_floor) {
