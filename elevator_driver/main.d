@@ -24,11 +24,7 @@ void run_movement (Tid loggerTid, Tid order_list_thread) {
     int current_floor = -1;
 
     while(true){
-        receive(
-			(CallButton btn) {
-                log("nothing yet");
-//				order_list_thread.send(NewOrderRequest(btn.floor, btn.call));
-			},
+        receive(	
             (TargetFloor new_target){
                 target_floor = new_target;
                 log("Got new order to floor "~to!string(target_floor));
@@ -40,10 +36,11 @@ void run_movement (Tid loggerTid, Tid order_list_thread) {
             },
             (FloorSensor floor_sensor){
                 current_floor = floor_sensor;
-                log("Floor sensor detected floor "~to!string(current_floor)~".");
+                writeln("Floor sensor detected floor "~to!string(current_floor)~".");
                 if (current_floor == target_floor) {
                     motorDirection(Dirn.stop);
-                    log("This is the target floor; stopping.");
+                    writeln("This is the target floor; stopping.");
+					order_list_thread.send(FloorSensor(current_floor));
                 }
             },
             (Obstruction a){

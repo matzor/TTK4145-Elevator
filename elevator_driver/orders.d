@@ -44,7 +44,6 @@ class OrderList {
 	private Order get_order(int floor, CallButton.Call call) {
 		Order iter = next_stop;
 		do{
-					writeln("floor:", iter.floor, "dir:", iter.call );
 			if (floor==iter.floor) {
 				if (call == CallButton.Call.cab) return iter;
 				if (call == iter.call) return iter;
@@ -70,13 +69,12 @@ class OrderList {
 		if (call == CallButton.Call.cab) {
 			order.cab_here = true;
 		} else {
-			writeln("start");
 			order.order_here = true;
-			writeln("end");
 		}
 	}
 	
 	void finish_order (int floor, CallButton.Call call) {
+		writeln("floor: ", floor, "call:", call);
 		Order order = get_order(floor, call);
 		order.cab_here = false;
 		order.order_here = false;
@@ -111,9 +109,10 @@ void run_order_list (int numfloors, int startfloor, Tid movement_thread) {
 	while(1) {
 		receive(
 			(FloorSensor f) {
+				writeln("HERE");
 				floor = f;
-				CallButton.Call dir_to_calldir;
-				/*switch(motor_dir){
+				/*CallButton.Call dir_to_calldir;
+				switch(motor_dir){
 					case(Dirn.up):
 						dir_to_calldir=CallButton.Call.hallUp;
 						break;	
@@ -123,11 +122,9 @@ void run_order_list (int numfloors, int startfloor, Tid movement_thread) {
 					default:
 						//nothing happen
 						break;
-				}*/
-						
-
+				}
 				orderlist.finish_order(floor, dir_to_calldir);
-				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
+				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));*/
 			},
 			(MotorDirUpdate m) {
 				motor_dir = m;
