@@ -15,14 +15,15 @@ NewOrderRequest button_to_order (CallButton btn) {
 	return n;
 }
 
-void run_movement (Tid loggerTid, Tid order_list_thread) {
+void run_movement (Tid loggerTid) {
     void log(string msg) {
         loggerTid.send(ElevatorControllerLog(msg));
     }
 
     int target_floor = -1;
     int current_floor = -1;
-
+	
+	Tid order_list_thread = receiveOnly!InitTid;
     while(true){
         receive(	
             (TargetFloor new_target){
@@ -59,13 +60,10 @@ void run_movement (Tid loggerTid, Tid order_list_thread) {
 void main(){
 
     initElevIO("localhost", 15657, 4);
-	Tid movement_tid;
-	Tid order_list_tid;
+	Tid movement_tid = spawn(&run_movement, thisTid); 
+	Tid order_list_tid = spawn(&run_order_list,4,1);
 
-    movement_tid = spawn(&run_movement, thisTid, order_list_tid); 
-	order_list_tid = spawn(&run_order_list,4,1,movement_tid);
-
-
+	order_list_tid.send(InitTid(movement_tid));
     spawn(&pollCallButtons, order_list_tid);
     spawn(&pollFloorSensor, movement_tid);
     spawn(&pollObstruction, movement_tid);

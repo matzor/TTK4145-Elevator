@@ -3,7 +3,6 @@ import std.stdio;
 import std.concurrency;
 import elevio;
 
-
 enum HallCall : int {
     up,
     down
@@ -17,6 +16,11 @@ struct MotorDirUpdate {
 struct NewOrderRequest {
 	int floor;
 	CallButton.Call call;
+}
+
+struct InitTid {
+	Tid thread_id;
+	alias thread_id this;
 }
 
 struct TargetFloor {
@@ -102,14 +106,16 @@ class OrderList {
 	}
 }
 
-void run_order_list (int numfloors, int startfloor, Tid movement_thread) {
+void run_order_list (int numfloors, int startfloor) {
 	auto orderlist = new OrderList(numfloors, startfloor);
 	int floor = startfloor;
 	Dirn motor_dir = Dirn.up;
+
+	Tid movement_thread = receiveOnly!InitTid;
+	movement_thread.send(InitTid(thisTid));
 	while(1) {
 		receive(
 			(FloorSensor f) {
-				writeln("HERE");
 				floor = f;
 				/*CallButton.Call dir_to_calldir;
 				switch(motor_dir){
