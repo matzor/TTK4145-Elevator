@@ -99,7 +99,7 @@ class OrderList {
 	void printout(){
 		Order iter = next_stop;
 		do{
-			writeln("Floor: ", iter.floor, ", dir: ", iter.call,", order: ", iter.cab_here);
+			writeln("Floor: ", iter.floor, ", dir: ", iter.call,", order: ", iter.order_here, ", cab: ", iter.cab_here);
 
 			iter = iter.next;
 		}while (iter != next_stop);
