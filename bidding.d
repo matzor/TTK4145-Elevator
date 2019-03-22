@@ -1,6 +1,5 @@
 import 	std.stdio,
 		std.concurrency,
-		assoc_array_helper,
 		elevio,
 		network;
 
@@ -13,7 +12,10 @@ struct State_vector{
 	Dirn dir;
 }
 
-
+struct ConfirmedOrder{
+	bool confirmed;
+	alias confirmed this;	
+}
 
 int calculate_own_cost(Udp_msg msg){
 	/** COST CALCULATING TABLE:
@@ -42,7 +44,6 @@ int calculate_own_cost(Udp_msg msg){
 }
 
 ubyte calculate_winner(int[ubyte] cost_list){ //Return ID of winner.
-	import	assoc_array_helper;
 	return key_of_min_value(cost_list);
 }
 
@@ -119,7 +120,6 @@ ubyte key_of_min_value(int[ubyte] list){
 
 void order_watchdog(CallButton order, int timeout_sec, Tid order_list_tid ){ //TODO: Define types for order and ID.
 	import std.concurrency, std.datetime, std.conv;
-	udp_send_safe(order, thisTid);
 	receiveTimeout((timeout_sec*1000).msecs,
 		(ConfirmedOrder c){ 
 			return;
