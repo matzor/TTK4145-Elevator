@@ -5,7 +5,7 @@ simulator.con
 --btnDepressedTime_ms           200
 --stopMotorOnDisconnect         true
 
---numFloors             7           // Minimum: 2, maximum: 9
+--numFloors             4           // Minimum: 2, maximum: 9
 
 --port                  15657
 

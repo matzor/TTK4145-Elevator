@@ -21,19 +21,33 @@ void run_movement (Tid loggerTid) {
     }
 
     int target_floor = -1;
-    int current_floor = -1;
-	
+    int current_floor = -1;	
 	Tid order_list_thread = receiveOnly!InitTid;
-    while(true){
+//	motorDirection(Dirn.down); //TODO: fix init movement
+//	auto temp=receiveOnly!FloorSensor;
+//	motorDirection(Dirn.stop);
+
+	    while(true){
+
         receive(	
             (TargetFloor new_target){
-                target_floor = new_target;
-                log("Got new order to floor "~to!string(target_floor));
-                if (target_floor > current_floor) {
-                    motorDirection(Dirn.up);
-                } else if (target_floor < current_floor) {
-                    motorDirection(Dirn.down);
-                }
+				if(new_target>-1){
+                	target_floor = new_target;
+                	log("Got new order to floor "~to!string(target_floor));
+                	if (target_floor > current_floor) {
+                    	motorDirection(Dirn.up);
+						order_list_thread.send(MotorDirUpdate(Dirn.up));
+						current_floor=-1;
+	                } else if (target_floor < current_floor) {
+    	                motorDirection(Dirn.down);
+						order_list_thread.send(MotorDirUpdate(Dirn.down));
+						current_floor=-1;
+        	        }
+					else{	
+						order_list_thread.send(FloorSensor(current_floor));					
+					}
+				}
+				else{ writeln("finished all orders"); }
             },
             (FloorSensor floor_sensor){
                 current_floor = floor_sensor;
@@ -58,16 +72,18 @@ void run_movement (Tid loggerTid) {
 }
 
 void main(){
-
-    initElevIO("localhost", 15657, 4);
+	int num_floors=4;
+    initElevIO("localhost", 15657, num_floors);
 	Tid movement_tid = spawn(&run_movement, thisTid); 
-	Tid order_list_tid = spawn(&run_order_list,4,1);
-
-	order_list_tid.send(InitTid(movement_tid));
-    spawn(&pollCallButtons, order_list_tid);
     spawn(&pollFloorSensor, movement_tid);
     spawn(&pollObstruction, movement_tid);
     spawn(&pollStopButton,  movement_tid);
+
+	Tid order_list_tid = spawn(&run_order_list,num_floors,1);
+	order_list_tid.send(InitTid(movement_tid));
+
+    spawn(&pollCallButtons, order_list_tid);
+
 
     while(true){
         receive(

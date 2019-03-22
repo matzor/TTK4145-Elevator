@@ -78,7 +78,6 @@ class OrderList {
 	}
 	
 	void finish_order (int floor, CallButton.Call call) {
-		writeln("floor: ", floor, "call:", call);
 		Order order = get_order(floor, call);
 		order.cab_here = false;
 		order.order_here = false;
@@ -92,10 +91,10 @@ class OrderList {
 	private Order[] order_queue_init(int number_of_floors){
 		Order[] queue;
 	
-		foreach(floor; 0 .. number_of_floors-1){
+		foreach(floor; 0 .. number_of_floors){
 			queue~=new Order(floor, CallButton.Call.hallUp);
 		}
-		for(int floor=number_of_floors; floor>0; floor-- ){
+		for(int floor=number_of_floors-1; floor>=0; floor-- ){
 	 		queue~=new Order(floor, CallButton.Call.hallDown);
 		}
 		for (int i=0; i<queue.length-1; i++) {
@@ -104,12 +103,30 @@ class OrderList {
 		queue.back.next = queue[0];
 		return queue; 
 	}
+	void print_order_list(){
+		Order iter = next_stop;
+		do{
+			writeln("Floor: ", iter.floor, ", dir: ", iter.call,", order: ", iter.order_here);
+			
+			iter = iter.next;
+		}while (iter != next_stop); 
+	}
+}
+
+CallButton.Call dirn_to_call(Dirn dir){
+	if(dir==Dirn.up){
+		return CallButton.Call.hallUp;
+	}
+	else{
+		return CallButton.Call.hallDown;
+	}
+
 }
 
 void run_order_list (int numfloors, int startfloor) {
 	auto orderlist = new OrderList(numfloors, startfloor);
 	int floor = startfloor;
-	Dirn motor_dir = Dirn.up;
+	Dirn motor_dir = Dirn.down;
 
 	Tid movement_thread = receiveOnly!InitTid;
 	movement_thread.send(InitTid(thisTid));
@@ -117,26 +134,29 @@ void run_order_list (int numfloors, int startfloor) {
 		receive(
 			(FloorSensor f) {
 				floor = f;
-				/*CallButton.Call dir_to_calldir;
-				switch(motor_dir){
-					case(Dirn.up):
-						dir_to_calldir=CallButton.Call.hallUp;
-						break;	
-					case(Dirn.down):
-						dir_to_calldir=CallButton.Call.hallDown;
-						break;
-					default:
-						//nothing happen
-						break;
-				}
+				CallButton.Call dir_to_calldir=dirn_to_call(motor_dir);	
 				orderlist.finish_order(floor, dir_to_calldir);
-				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));*/
+				if(orderlist.get_next_order_floor == floor){
+					if(dir_to_calldir==CallButton.Call.hallUp){
+						dir_to_calldir=CallButton.Call.hallDown;
+					}
+					else{
+						dir_to_calldir=CallButton.Call.hallUp;	
+					}
+					orderlist.finish_order(floor, dir_to_calldir);
+				}
+				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
 			},
 			(MotorDirUpdate m) {
 				motor_dir = m;
 			},
 			(CallButton n) {
-				orderlist.set_order(n.floor, n.call);
+				if(n.floor==floor){
+					writeln("Already here");
+				}
+				else{
+					orderlist.set_order(n.floor, n.call);
+				}
 				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
 			},
 		);
