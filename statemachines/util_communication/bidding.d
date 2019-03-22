@@ -1,8 +1,19 @@
-import 	elevio,
+import 	std.stdio,
+		std.concurrency,
+		assoc_array_helper,
+		elevio,
 		network;
 
 private __gshared int current_floor;
 private __gshared Dirn current_direction;
+
+/*Move this to Orders.d (?)*/
+struct State_vector{
+	int floor;
+	Dirn dir;
+}
+
+
 
 int calculate_own_cost(Udp_msg msg){
 	/** COST CALCULATING TABLE:
@@ -35,9 +46,11 @@ ubyte calculate_winner(int[ubyte] cost_list){ //Return ID of winner.
 	return key_of_min_value(cost_list);
 }
 
-void bidding_main(int current_floor, Dirn current_direction){
+
+void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thread){
 	current_floor = current_floor;
 	current_direction = current_direction;
+	auto order_list = order_list_thread;
 
 	while(true){
 		receive(
@@ -45,23 +58,34 @@ void bidding_main(int current_floor, Dirn current_direction){
 				switch(msg.msgtype)
 				{
 					case 'e':
-				  		writeln("Received message type EXTERNAL from id ", msg.srcId);
 						if (msg.new_order){
+							writeln("Received NEW message of type EXTERNAL from id ", msg.srcId);
 							//TODO: Handle new orders, no one has bid on this yet
 							//TODO: Calculate own bid and send
 							Udp_msg new_message = msg;
 							new_message.bid = calculate_own_cost(msg);
-							mew_message.new_order = 0;
+							new_message.new_order = 0;
 							network.udp_send(new_message);
 						}
 						else {
+							writeln("Received BID message from id ", msg.srcId);
 							//TODO: handle someone has bid on this order
 							//TODO: Add bid to cost_list
+							//FOR TESTING ONLY; ASSUME ALL BIDS WINS
+							bool win = true;
+							if(win){
+								auto btn = udp_msg_to_call(msg);
+								order_list.send(btn);
+
+							}
+
 						}
 						break;
 					case 'i':
                         /*TODO: Send directly to orderqueue*/
                         writeln("Received message type INTERNAL from id ", msg.srcId);
+						auto btn = udp_msg_to_call(msg);
+						order_list.send(btn);
                         break;
 					case 'c':
                         /*TODO: Handle confirmed orders, send to watchdog handler*/

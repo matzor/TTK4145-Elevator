@@ -1,4 +1,4 @@
-ubyte key_of_min_value(ulong[ubyte] list){
+ubyte key_of_min_value(int[ubyte] list){
 	ulong min_val=429496729;
 	ubyte min_key;
 	foreach(key; list.keys){
@@ -9,4 +9,3 @@ ubyte key_of_min_value(ulong[ubyte] list){
 	}
 	return min_key;
 }
-

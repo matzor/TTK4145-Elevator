@@ -1,6 +1,5 @@
 import std.stdio, std.conv, std.concurrency, core.thread;
-import elevio, orders, //network, bidding,
-;
+import elevio, orders, network, bidding;
 
 struct ElevatorControllerLog {
     string message;
@@ -27,7 +26,7 @@ void run_movement (Tid loggerTid) {
     }
 
     int target_floor = -1;
-    int current_floor = -1;	
+    int current_floor = -1;
 	Tid order_list_thread = receiveOnly!InitTid;
 //	motorDirection(Dirn.down); //TODO: fix init movement
 //	auto temp=receiveOnly!FloorSensor;
@@ -35,7 +34,7 @@ void run_movement (Tid loggerTid) {
 
 	    while(true){
 
-        receive(	
+        receive(
             (TargetFloor new_target){
 				if(new_target>-1){
                 	target_floor = new_target;
@@ -53,15 +52,15 @@ void run_movement (Tid loggerTid) {
 						order_list_thread.send(MotorDirUpdate(Dirn.down));
 						current_floor=-1;
         	        }
-					else{	
-						order_list_thread.send(FloorSensor(current_floor));	
+					else{
+						order_list_thread.send(FloorSensor(current_floor));
 						writeln("Already on target floor");
 					}
 				}
 				else{ writeln("finished all orders"); }
             },
             (FloorSensor floor_sensor){
-				
+
                 current_floor = floor_sensor;
                 writeln("Floor sensor detected floor "~to!string(current_floor)~".");
                 if (current_floor == target_floor) {
@@ -89,7 +88,7 @@ void run_movement (Tid loggerTid) {
 void main(){
 	int num_floors=4;
     initElevIO("localhost", 15657, num_floors);
-	Tid movement_tid = spawn(&run_movement, thisTid); 
+	Tid movement_tid = spawn(&run_movement, thisTid);
     spawn(&pollFloorSensor, movement_tid);
     spawn(&pollObstruction, movement_tid);
     spawn(&pollStopButton,  movement_tid);

@@ -8,7 +8,8 @@ import  std.array,
         std.stdio,
         std.string,
         std.datetime,
-        network_peers;
+        network_peers,
+        elevio;
 
 private __gshared ushort        broadcastport       = 19668;
 private __gshared ushort        com_port            = 19667;
@@ -153,7 +154,39 @@ void udp_send(Udp_msg msg){
         txThread.send(msg);
 }
 
-void networkMain(){
+Udp_msg callButton_to_udp_msg(CallButton btn){
+        Udp_msg msg;
+        msg.srcId = _id;
+        msg.floor = btn.floor;
+        if (btn.call == CallButton.Call.hallUp){
+                msg.dir = 1;
+                msg.msgtype = 'e';
+        }
+        else if (btn.call == CallButton.Call.hallDown){
+                msg.dir = -1;
+                msg.msgtype = 'e';
+        }
+        else {
+                msg.dir = 0;
+                msg.msgtype = 'i';
+         }
+        return msg;
+}
+
+CallButton udp_msg_to_call(Udp_msg msg){
+	CallButton btn;
+	btn.floor = msg.floor;
+	if (msg.dir == 1) {
+		btn.call = CallButton.Call.hallUp;
+	}
+	else {
+		btn.call = CallButton.Call.hallDown;
+	}
+	return btn;
+}
+
+void networkMain(Tid communication_thread_id){
+        auto communication_thread = communication_thread_id;
         network_init();
         auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
         txThread                  = spawn(&udp_tx);
@@ -165,7 +198,11 @@ void networkMain(){
                         /*TODO: Handle PeerList updates
                         what do we even do with this information!?*/
                         writeln("Received peerlist: ", p);
-                },
+                        },
+                (CallButton btn){
+                                auto msg = callButton_to_udp_msg(btn);
+                                udp_send(msg);
+                        },
                 (Udp_msg msg){
                         /*Filtering out messages*/
                         if (msg.dstId == _id || msg.dstId == 255){
@@ -173,16 +210,16 @@ void networkMain(){
                                 {
                                         case 'i':
                                                 if (msg.srcId == _id){ //only want its own internals
-                                                        //TODO: send to bidding thread
+                                                        communication_thread.send(msg);
                                                 }
                                                 break;
                                         default:
-                                                //TODO: Send to bidding thread
+                                                communication_thread.send(msg);
                                                 break;
                                 }
 
-                    }
-                }
+                        }
+                    },
                 );
         }
 }
