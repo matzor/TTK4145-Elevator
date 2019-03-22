@@ -6,14 +6,6 @@ struct ElevatorControllerLog {
     alias message this;
 }
 
-NewOrderRequest button_to_order (CallButton btn) {
-	NewOrderRequest n;
-	n.floor = btn.floor;
-	n.call=btn.call;
-	//TODO: remove this maybe? n=btn
-	return n;
-}
-
 void door_open(int sec){
 	doorLight(1);
 	Thread.sleep((sec*1000).msecs);

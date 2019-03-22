@@ -8,11 +8,6 @@ struct MotorDirUpdate {
 	alias dir this;
 }
 
-struct NewOrderRequest {
-	int floor;
-	CallButton.Call call;
-}
-
 struct InitTid {
 	Tid thread_id;
 	alias thread_id this;
@@ -48,10 +43,10 @@ class OrderList {
 				if (call == iter.call) return iter;
 			}
 			iter = iter.next;
-		}while (iter != next_stop); 
+		}while (iter != next_stop);
 		return null;
 	}
-	
+
 	int get_next_order_floor(){
 		Order iter = next_stop;
 		do{
@@ -72,7 +67,7 @@ class OrderList {
 			order.order_here = true;
 		}
 	}
-	
+
 	void finish_order (int floor, CallButton.Call call) {
 		Order order = get_order(floor, call);
 		callButtonLight(floor, call, 0);
@@ -81,14 +76,14 @@ class OrderList {
 		order.order_here = false;
 		next_stop = next_stop.next;
 	}
-	
+
 	this(int numfloors,int start_floor) {
 		o_list = order_queue_init(numfloors);
-		next_stop=o_list[start_floor];	
+		next_stop=o_list[start_floor];
 	}
 	private Order[] order_queue_init(int number_of_floors){
 		Order[] queue;
-	
+
 		foreach(floor; 0 .. number_of_floors){
 			queue~=new Order(floor, CallButton.Call.hallUp);
 		}
@@ -99,15 +94,15 @@ class OrderList {
 			queue[i].next = queue[i+1];
 		}
 		queue.back.next = queue[0];
-		return queue; 
+		return queue;
 	}
 	void printout(){
 		Order iter = next_stop;
 		do{
 			writeln("Floor: ", iter.floor, ", dir: ", iter.call,", order: ", iter.cab_here);
-			
+
 			iter = iter.next;
-		}while (iter != next_stop); 
+		}while (iter != next_stop);
 	}
 }
 
@@ -132,14 +127,14 @@ void run_order_list (int numfloors, int startfloor) {
 		receive(
 			(FloorSensor f) {
 				floor = f;
-				CallButton.Call dir_to_calldir=dirn_to_call(motor_dir);	
+				CallButton.Call dir_to_calldir=dirn_to_call(motor_dir);
 				orderlist.finish_order(floor, dir_to_calldir);
 				if(orderlist.get_next_order_floor == floor){
 					if(dir_to_calldir==CallButton.Call.hallUp){
 						dir_to_calldir=CallButton.Call.hallDown;
 					}
 					else{
-						dir_to_calldir=CallButton.Call.hallUp;	
+						dir_to_calldir=CallButton.Call.hallUp;
 					}
 					orderlist.finish_order(floor, dir_to_calldir);
 				}
@@ -163,4 +158,3 @@ void run_order_list (int numfloors, int startfloor) {
 		);
 	}
 }
-
