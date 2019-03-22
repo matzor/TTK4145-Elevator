@@ -104,3 +104,27 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
 			);
 	}
 }
+
+ubyte key_of_min_value(int[ubyte] list){
+	ulong min_val=429496729;
+	ubyte min_key;
+	foreach(key; list.keys){
+		if(min_val>list[key]){
+			min_val=list[key];
+			min_key=key;
+		}
+	}
+	return min_key;
+}
+
+void order_watchdog(CallButton order, int timeout_sec, Tid order_list_tid ){ //TODO: Define types for order and ID.
+	import std.concurrency, std.datetime, std.conv;
+	udp_send_safe(order, thisTid);
+	receiveTimeout((timeout_sec*1000).msecs,
+		(ConfirmedOrder c){ 
+			return;
+		},	
+	);
+	order_list_tid.send(order);
+	return;
+}
