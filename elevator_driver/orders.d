@@ -3,11 +3,6 @@ import std.stdio;
 import std.concurrency;
 import elevio;
 
-enum HallCall : int {
-    up,
-    down
-}
-
 struct MotorDirUpdate {
 	Dirn dir;
 	alias dir this;
@@ -106,10 +101,10 @@ class OrderList {
 		queue.back.next = queue[0];
 		return queue; 
 	}
-	void print_order_list(){
+	void printout(){
 		Order iter = next_stop;
 		do{
-			writeln("Floor: ", iter.floor, ", dir: ", iter.call,", order: ", iter.order_here);
+			writeln("Floor: ", iter.floor, ", dir: ", iter.call,", order: ", iter.cab_here);
 			
 			iter = iter.next;
 		}while (iter != next_stop); 
@@ -155,12 +150,15 @@ void run_order_list (int numfloors, int startfloor) {
 			},
 			(CallButton n) {
 				if(n.floor==floor){
-					writeln("Already here");
+					//writeln("Already here");
 				}
 				else{
 					orderlist.set_order(n.floor, n.call);
 				}
 				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
+			},
+			(Obstruction a){
+				orderlist.printout();
 			},
 		);
 	}
