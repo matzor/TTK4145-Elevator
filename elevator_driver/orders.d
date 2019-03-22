@@ -70,6 +70,7 @@ class OrderList {
 
 	void set_order(int floor, CallButton.Call call) {
 		Order order = get_order(floor, call);
+		callButtonLight(floor, call, 1);
 		if (call == CallButton.Call.cab) {
 			order.cab_here = true;
 		} else {
@@ -79,6 +80,8 @@ class OrderList {
 	
 	void finish_order (int floor, CallButton.Call call) {
 		Order order = get_order(floor, call);
+		callButtonLight(floor, call, 0);
+		callButtonLight(floor, CallButton.Call.cab, 0);
 		order.cab_here = false;
 		order.order_here = false;
 		next_stop = next_stop.next;
