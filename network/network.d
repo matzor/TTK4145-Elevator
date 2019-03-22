@@ -179,9 +179,12 @@ CallButton udp_msg_to_call(Udp_msg msg){
 	if (msg.dir == 1) {
 		btn.call = CallButton.Call.hallUp;
 	}
-	else {
+	else if (msg.dir == -1){
 		btn.call = CallButton.Call.hallDown;
 	}
+        else {
+                btn.call = CallButton.Call.cab;
+        }
 	return btn;
 }
 
