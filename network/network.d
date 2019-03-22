@@ -62,11 +62,12 @@ void network_init(){
 struct Udp_msg{
         ubyte     srcId     = 0;
         ubyte     dstId     = 255;  //255: broadcast
-        char      msgtype   = 0;    //'i' || 'e' || 'c' || 'a'  (internal / external / confirmed / ack)
+        char      msgtype   = 0;    //'i' || 'e' || 'c'  (internal / external / confirmed)
         int       floor     = 0;    //floor of order
         int       bid       = 0;    //bid for order
         ubyte     fines     = 0;    //"targetID"
-        bool      ack       = 0;    //true: message must be ACKed. Don't actually use acking anymore yo
+        bool      new_order = 1;    //1: new external order
+        int       dir       = 0;    //1: up, -1: down. only relevant for external orders
 }
 
 
@@ -77,21 +78,23 @@ string udp_msg_to_string(Udp_msg msg){
         ~ "," ~ to!string(msg.floor)
         ~ "," ~ to!string(msg.bid)
         ~ "," ~ to!string(msg.fines)
-        ~ "," ~ to!string(msg.ack);
+        ~ "," ~ to!string(msg.new_order)
+        ~ "," ~ to!string(msg.dir);
     return str;
 }
 
 Udp_msg string_to_udp_msg(string str){
       Udp_msg msg;
       auto temp     = str.splitter(',').array;
-      if (temp.length >= 6){
+      if (temp.length >= 7){
           msg.srcId     = to!ubyte(temp[0]);
           msg.dstId     = to!ubyte(temp[1]);
           msg.msgtype   = to!char(temp[2]);
           msg.floor     = to!int(temp[3]);
           msg.bid       = to!int(temp[4]);
           msg.fines     = to!ubyte(temp[5]);
-          msg.ack       = to!bool(temp[6]);
+          msg.new_order = to!bool(temp[6]);
+          msg.dir       = to!int(temp[7]);
       }
       else{writeln("Corrupt message format");}
       return msg;
@@ -163,33 +166,21 @@ void networkMain(){
                         what do we even do with this information!?*/
                         writeln("Received peerlist: ", p);
                 },
-
                 (Udp_msg msg){
-                        /*TODO: Handle UDP message*/
+                        /*Filtering out messages*/
                         if (msg.dstId == _id || msg.dstId == 255){
-                            switch(msg.msgtype)
-                            {
-                                case 'e':
-                                    /*TODO: Handle external orders*/
-                                    writeln("Received message type EXTERNAL from id ", msg.srcId);
-                                    break;
-                                case 'i':
-                                    /*TODO: Handle internal orders*/
-                                    writeln("Received message type INTERNAL from id ", msg.srcId);
-                                    break;
-                                case 'c':
-                                    /*TODO: Handle confirmed orders*/
-                                    writeln("Received message type CONFIRMED from id ", msg.srcId);
-                                    break;
-                                case 'a':
-                                    /*Ack messages used internally for udp transmission only*/
-                                    writeln("Received message type ACK from id ", msg.srcId);
-                                    break;
-                                default:
-                                    /*TODO: Handle invalid message type*/
-                                    writeln("Invalid message type");
-                                    break;
-                            }
+                                switch(msg.msgtype)
+                                {
+                                        case 'i':
+                                                if (msg.srcId == _id){ //only want its own internals
+                                                        //TODO: send to bidding thread
+                                                }
+                                                break;
+                                        default:
+                                                //TODO: Send to bidding thread
+                                                break;
+                                }
+
                     }
                 }
                 );
