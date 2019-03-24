@@ -60,9 +60,9 @@ class OrderList {
 
 	void set_order(int floor, CallButton.Call call) {
 		Order order = get_order(floor, call);
-		/*if(call==CallButton.Call.cab){
+		if(call==CallButton.Call.cab){
 			log_set_floor(floor);
-		}*/
+		}
 		callButtonLight(floor, call, 1);
 		if (call == CallButton.Call.cab) {
 			order.cab_here = true;
@@ -78,7 +78,7 @@ class OrderList {
 		order.cab_here = false;
 		order.order_here = false;
 		next_stop = next_stop.next;
-		//log_clear_floor(floor);
+		log_clear_floor(floor);
 	}
 
 	this(int numfloors,int start_floor) {
@@ -122,11 +122,13 @@ CallButton.Call dirn_to_call(Dirn dir){
 
 void run_order_list (int numfloors, int startfloor) {
 	auto orderlist = new OrderList(numfloors, startfloor);
-	//init_log(numfloors);
-	//int[] log=read_log();
-	/*foreach(i;log){
-		orderlist.set_order(i,CallButton.Call.cab);
-	}*/
+	init_log(numfloors);
+	int[] log=read_log();
+	for(int i=0; i<numfloors;i++){
+		if(log[i]){
+			orderlist.set_order(i,CallButton.Call.cab);
+		}
+	}
 	int floor = startfloor;
 	Dirn motor_dir = Dirn.down;
 	

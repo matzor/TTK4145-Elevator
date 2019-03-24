@@ -12,7 +12,7 @@ void door_open(int sec){
 	doorLight(0);
 }
 
-void run_movement (Tid loggerTid) {
+void run_movement (Tid loggerTid, int num_floors) {
     void log(string msg) {
         loggerTid.send(ElevatorControllerLog(msg));
     }
@@ -24,7 +24,6 @@ void run_movement (Tid loggerTid) {
 	receiveTimeout(3000.msecs,
 	(FloorSensor f){
 		start_at_floor=f;
-		writeln("Starting at floor");
 	},
 	);
 	if(!start_at_floor){
@@ -65,7 +64,10 @@ void run_movement (Tid loggerTid) {
 
                 current_floor = floor_sensor;
                 writeln("Floor sensor detected floor "~to!string(current_floor)~".");
-                if (current_floor == target_floor) {
+                if (current_floor == target_floor	
+					|| current_floor == 0
+					|| current_floor == num_floors-1 
+					){
                     motorDirection(Dirn.stop);
 					door_open(1);
                     writeln("This is the target floor; stopping.");
@@ -90,7 +92,7 @@ void run_movement (Tid loggerTid) {
 void main(){
 	int num_floors=4;
     initElevIO("localhost", 15657, num_floors);
-	Tid movement_tid = spawn(&run_movement, thisTid);
+	Tid movement_tid = spawn(&run_movement, thisTid,num_floors);
     spawn(&pollFloorSensor, movement_tid);
     spawn(&pollObstruction, movement_tid);
     spawn(&pollStopButton,  movement_tid);
