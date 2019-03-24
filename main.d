@@ -20,11 +20,21 @@ void run_movement (Tid loggerTid) {
     int target_floor = -1;
     int current_floor = -1;
 	Tid order_list_thread = receiveOnly!InitTid;
-//	motorDirection(Dirn.down); //TODO: fix init movement
-//	auto temp=receiveOnly!FloorSensor;
-//	motorDirection(Dirn.stop);
-
-	    while(true){
+	int start_at_floor=1;
+	receiveTimeout(3000.msecs,
+	(FloorSensor f){
+		start_at_floor=f;
+		writeln("Starting at floor");
+	},
+	);
+	if(!start_at_floor){
+		motorDirection(Dirn.up);
+		order_list_thread.send(CallButton(1,CallButton.Call.cab));
+	} else{
+		order_list_thread.send(CallButton(0,CallButton.Call.cab));
+		motorDirection(Dirn.down);
+	}
+	while(true){
 
         receive(
             (TargetFloor new_target){
@@ -85,7 +95,7 @@ void main(){
     spawn(&pollObstruction, movement_tid);
     spawn(&pollStopButton,  movement_tid);
 
-	Tid order_list_tid = spawn(&run_order_list,num_floors,1);
+	Tid order_list_tid = spawn(&run_order_list,num_floors,num_floors-1);
 	order_list_tid.send(InitTid(movement_tid));
 
 	auto bidding_thread = spawn(&bidding_main,0,Dirn.stop,order_list_tid);

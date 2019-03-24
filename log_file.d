@@ -4,11 +4,14 @@ import 	std.stdio,
 		std.string;
 
 void init_log(int floors){
-	auto f = File("log.lg", "w");
-	for(int i = 0; i < floors; i++){
-		f.writeln("0");
+	string filename="log.lg";
+	if(!exists(filename)){
+		auto f = File(filename, "w");
+		for(int i = 0; i < floors; i++){
+			f.writeln("0");
+		}
+		f.close();
 	}
-	f.close();
 }
 
 int[] read_log(){
@@ -41,7 +44,7 @@ void log_clear_floor(int floor){
 	log_contents[floor] = 0;
 	write_log(log_contents);
 }
-
+/*
 void main(){
 	int floors = 4;
 	//init_log(floors);
@@ -61,4 +64,4 @@ void main(){
 	writeln(read_log());
 	log_clear_floor(1);
 	writeln(read_log());
-}
+}*/
