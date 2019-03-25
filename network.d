@@ -51,7 +51,7 @@ void network_init(){
 
     if(id_str == "default"){
         try{
-                _id = 0;
+                _id = 1;
         }
         catch(Exception e){
             writeln("Unable to resolve id:\n", e.msg);}
@@ -68,9 +68,13 @@ struct Udp_msg{
         int       bid       = 0;    //bid for order
         ubyte     fines     = 0;    //"targetID"
         bool      new_order = 1;    //1: new external order
-        int       dir       = 0;    //1: up, -1: down. only relevant for external orders
+        int       dir       = 0;    //1: up, 0: cab, -1: down
 }
 
+struct Finished_order{
+        int floor;
+        CallButton.Call call;
+}
 
 string udp_msg_to_string(Udp_msg msg){
     string str = to!string(msg.srcId)
@@ -99,6 +103,49 @@ Udp_msg string_to_udp_msg(string str){
       }
       else{writeln("Corrupt message format");}
       return msg;
+}
+
+Udp_msg callButton_to_udp_msg(CallButton btn){
+        Udp_msg msg;
+        msg.srcId = _id;
+        msg.floor = btn.floor;
+        if (btn.call == CallButton.Call.hallUp){
+                msg.dir = 1;
+                msg.msgtype = 'e';
+        }
+        else if (btn.call == CallButton.Call.hallDown){
+                msg.dir = -1;
+                msg.msgtype = 'e';
+        }
+        else {
+                msg.dir = 0;
+                msg.msgtype = 'i';
+         }
+        return msg;
+}
+
+CallButton udp_msg_to_call(Udp_msg msg){
+	CallButton btn;
+	btn.floor = msg.floor;
+	if (msg.dir == 1) {
+		btn.call = CallButton.Call.hallUp;
+	}
+	else if (msg.dir == -1){
+		btn.call = CallButton.Call.hallDown;
+	}
+        else {
+                btn.call = CallButton.Call.cab;
+        }
+	return btn;
+}
+
+void send_finished_order(Finished_order order){
+        CallButton btn;
+        btn.floor = order.floor;
+        btn.call = order.call;
+        auto msg = callButton_to_udp_msg(btn);
+        msg.msgtype = 'c';
+        udp_send(msg);
 }
 
 void udp_tx(){
@@ -154,39 +201,6 @@ void udp_send(Udp_msg msg){
         txThread.send(msg);
 }
 
-Udp_msg callButton_to_udp_msg(CallButton btn){
-        Udp_msg msg;
-        msg.srcId = _id;
-        msg.floor = btn.floor;
-        if (btn.call == CallButton.Call.hallUp){
-                msg.dir = 1;
-                msg.msgtype = 'e';
-        }
-        else if (btn.call == CallButton.Call.hallDown){
-                msg.dir = -1;
-                msg.msgtype = 'e';
-        }
-        else {
-                msg.dir = 0;
-                msg.msgtype = 'i';
-         }
-        return msg;
-}
-
-CallButton udp_msg_to_call(Udp_msg msg){
-	CallButton btn;
-	btn.floor = msg.floor;
-	if (msg.dir == 1) {
-		btn.call = CallButton.Call.hallUp;
-	}
-	else if (msg.dir == -1){
-		btn.call = CallButton.Call.hallDown;
-	}
-        else {
-                btn.call = CallButton.Call.cab;
-        }
-	return btn;
-}
 
 void networkMain(Tid communication_thread_id){
         auto communication_thread = communication_thread_id;
@@ -203,9 +217,12 @@ void networkMain(Tid communication_thread_id){
                         writeln("Received peerlist: ", p);
                         },
                 (CallButton btn){
-                                auto msg = callButton_to_udp_msg(btn);
-                                udp_send(msg);
-                        },
+                        auto msg = callButton_to_udp_msg(btn);
+                        udp_send(msg);
+                },
+                (Finished_order order){
+                        send_finished_order(order);
+                },
                 (Udp_msg msg){
                         /*Filtering out messages*/
                         if (msg.dstId == _id || msg.dstId == 255){

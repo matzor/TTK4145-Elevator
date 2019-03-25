@@ -24,7 +24,7 @@ void init_network_peers(ushort port, ubyte id, Duration interval, Duration timeo
     auto broadcastTxThread = spawn(&broadcast_tx);
     auto broadcastRxThread = spawn(&broadcast_rx, ownerTid);
     while(true){
-        receiveTimeout(broadcast_interval,
+        receive(
                 (Variant v) {}
             );
     }

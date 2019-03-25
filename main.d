@@ -64,9 +64,9 @@ void run_movement (Tid loggerTid, int num_floors) {
 
                 current_floor = floor_sensor;
                 writeln("Floor sensor detected floor "~to!string(current_floor)~".");
-                if (current_floor == target_floor	
+                if (current_floor == target_floor
 					|| current_floor == 0
-					|| current_floor == num_floors-1 
+					|| current_floor == num_floors-1
 					){
                     motorDirection(Dirn.stop);
 					door_open(1);
@@ -100,6 +100,7 @@ void main(){
 	Tid order_list_tid = spawn(&run_order_list,num_floors,num_floors-1);
 	order_list_tid.send(InitTid(movement_tid));
 
+    /*TODO: Fix initial state of bidding thread*/
 	auto bidding_thread = spawn(&bidding_main,0,Dirn.stop,order_list_tid);
 	auto network_main_tid = spawn(&network.networkMain, bidding_thread);
 

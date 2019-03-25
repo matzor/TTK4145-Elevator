@@ -79,6 +79,12 @@ class OrderList {
 		order.order_here = false;
 		next_stop = next_stop.next;
 		log_clear_floor(floor);
+		/*TODO: Give ordermanager Network thread id
+		Finished_order order;
+		order.floor = floor;
+		order.call = call;
+		network_tid.send(order);
+		*/
 	}
 
 	this(int numfloors,int start_floor) {
@@ -131,7 +137,7 @@ void run_order_list (int numfloors, int startfloor) {
 	}
 	int floor = startfloor;
 	Dirn motor_dir = Dirn.down;
-	
+
 	Tid movement_thread = receiveOnly!InitTid;
 	movement_thread.send(InitTid(thisTid));
 	while(1) {

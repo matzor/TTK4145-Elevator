@@ -3,6 +3,7 @@ import 	std.stdio,
 		std.conv,
 		std.string;
 
+/*TODO: Expand log to also cover confirmed external orders*/
 void init_log(int floors){
 	string filename="log.lg";
 	if(!exists(filename)){

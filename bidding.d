@@ -14,7 +14,7 @@ struct State_vector{
 
 struct ConfirmedOrder{
 	bool confirmed;
-	alias confirmed this;	
+	alias confirmed this;
 }
 
 int calculate_own_cost(Udp_msg msg){
@@ -72,18 +72,16 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
 							writeln("Received BID message from id ", msg.srcId);
 							//TODO: handle someone has bid on this order
 							//TODO: Add bid to cost_list
+							//TODO: Start watchdog
 							//FOR TESTING ONLY; ASSUME ALL BIDS WINS
 							bool win = true;
 							if(win){
 								auto btn = udp_msg_to_call(msg);
 								order_list.send(btn);
-
 							}
-
 						}
 						break;
 					case 'i':
-                        /*TODO: Send directly to orderqueue*/
                         writeln("Received message type INTERNAL from id ", msg.srcId);
 						auto btn = udp_msg_to_call(msg);
 						order_list.send(btn);
@@ -93,12 +91,13 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
                         writeln("Received message type CONFIRMED from id ", msg.srcId);
                         break;
 					default:
-                        /*TODO: Handle invalid message type*/
                         writeln("Invalid message type");
                         break;
 				}
 			},
 			(State_vector state){
+				/*TODO: Where (what thread) does this state come from?
+				Is this even necessary? */
 				current_floor = state.floor;
 				current_direction = state.dir;
 			}
@@ -121,9 +120,9 @@ ubyte key_of_min_value(int[ubyte] list){
 void order_watchdog(CallButton order, int timeout_sec, Tid order_list_tid ){ //TODO: Define types for order and ID.
 	import std.concurrency, std.datetime, std.conv;
 	receiveTimeout((timeout_sec*1000).msecs,
-		(ConfirmedOrder c){ 
+		(ConfirmedOrder c){
 			return;
-		},	
+		},
 	);
 	order_list_tid.send(order);
 	return;
