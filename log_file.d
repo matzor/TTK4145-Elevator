@@ -37,7 +37,7 @@ void write_log(int[] log_contents){
 
 void log_put_entry(int floor_state, int floor, CallButton.Call call){
 	auto log_contents = read_log;
-	int m = log_contents.length / 3;
+	int m = to!int(log_contents.length / 3);
 	int type;
 	if (call == CallButton.Call.cab){type = 0; }
 	else if (call == CallButton.Call.hallUp){type = 1; }
