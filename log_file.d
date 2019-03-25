@@ -1,14 +1,15 @@
 import 	std.stdio,
 		std.file,
 		std.conv,
-		std.string;
+		std.string,
+		elevio;
 
-/*TODO: Expand log to also cover confirmed external orders*/
 void init_log(int floors){
+	int entries = 3*floors;
 	string filename="log.lg";
 	if(!exists(filename)){
 		auto f = File(filename, "w");
-		for(int i = 0; i < floors; i++){
+		for(int i = 0; i < entries; i++){
 			f.writeln("0");
 		}
 		f.close();
@@ -34,35 +35,21 @@ void write_log(int[] log_contents){
 	f.close();
 }
 
-void log_set_floor(int floor){
+void log_put_entry(int floor_state, int floor, CallButton.Call call){
 	auto log_contents = read_log;
-	log_contents[floor] = 1;
+	int m = log_contents.length / 3;
+	int type;
+	if (call == CallButton.Call.cab){type = 0; }
+	else if (call == CallButton.Call.hallUp){type = 1; }
+	else {type = 2; }
+	log_contents[m*type + floor] = floor_state;
 	write_log(log_contents);
 }
 
-void log_clear_floor(int floor){
-	auto log_contents = read_log;
-	log_contents[floor] = 0;
-	write_log(log_contents);
+void log_set_floor(int floor, CallButton.Call call){
+	log_put_entry(1, floor, call);
 }
-/*
-void main(){
-	int floors = 4;
-	//init_log(floors);
-	try{
-		auto log_contents = read_log();
-		writeln(log_contents);
-	}
-	catch (Exception e) {
-			writeln("Error openeing log file!\n", "Initializing new empty log...");
-			init_log(floors);
-	}
 
-	writeln("Log tests here:");
-	writeln(read_log());
-	log_set_floor(0);
-	log_set_floor(1);
-	writeln(read_log());
-	log_clear_floor(1);
-	writeln(read_log());
-}*/
+void log_clear_floor(int floor, CallButton.Call call){
+	log_put_entry(0, floor, call);
+}

@@ -60,9 +60,7 @@ class OrderList {
 
 	void set_order(int floor, CallButton.Call call) {
 		Order order = get_order(floor, call);
-		if(call==CallButton.Call.cab){
-			log_set_floor(floor);
-		}
+		log_set_floor(floor, call);
 		callButtonLight(floor, call, 1);
 		if (call == CallButton.Call.cab) {
 			order.cab_here = true;
@@ -78,7 +76,8 @@ class OrderList {
 		order.cab_here = false;
 		order.order_here = false;
 		next_stop = next_stop.next;
-		log_clear_floor(floor);
+		log_clear_floor(floor, call);
+		log_clear_floor(floor, CallButton.Call.cab);
 		/*TODO: Give ordermanager Network thread id
 		Finished_order order;
 		order.floor = floor;
@@ -130,9 +129,24 @@ void run_order_list (int numfloors, int startfloor) {
 	auto orderlist = new OrderList(numfloors, startfloor);
 	init_log(numfloors);
 	int[] log=read_log();
-	for(int i=0; i<numfloors;i++){
-		if(log[i]){
-			orderlist.set_order(i,CallButton.Call.cab);
+	for (int i=0; i < numfloors; i++){
+		for (int j = 0; j < 3; j++){
+			if(log[numfloors*j + i]){
+				switch(j){
+					case 0:
+						orderlist.set_order(i,CallButton.Call.cab);
+						break;
+					case 1:
+						orderlist.set_order(i,CallButton.Call.hallUp);
+						break;
+					case 2:
+						orderlist.set_order(i,CallButton.Call.hallDown);
+						break;
+					default:
+						break;
+				}
+
+			}
 		}
 	}
 	int floor = startfloor;
