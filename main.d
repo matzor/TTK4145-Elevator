@@ -1,14 +1,42 @@
 import std.stdio, std.conv, std.concurrency, core.thread;
 import elevio, orders, network, bidding;
 
+private __gshared   int           num_floors            = 4;
+private __gshared   int           door_wait_ms          = 1000;
+private __gshared   Duration      door_wait;
+private __gshared   int           watchdog_timer_ms     = 30000;
+private __gshared   Duration      watchdog_timer;
+
 struct ElevatorControllerLog {
     string message;
     alias message this;
 }
 
-void door_open(int sec){
+void config_init(){
+    import std.getopt, std.file, std.string, std.conv;
+    string[] configContents;
+    try {
+        configContents = readText("elev.conf").split;
+        getopt(configContents,
+            std.getopt.config.passThrough,
+            "elev_num_floors",          &num_floors,
+            "elev_door_wait",           &door_wait_ms,
+            "elev_watchdog_timer",      &watchdog_timer_ms,
+        );
+
+        writeln("Elevator config file read successfully");
+
+    } catch(Exception e){
+        writeln("Unable to load elevator config:\n", e.msg);
+        writeln("Using failsafe default config");
+    }
+    door_wait = door_wait_ms.msecs;
+    watchdog_timer = watchdog_timer_ms.msecs;
+}
+
+void door_open(){
 	doorLight(1);
-	Thread.sleep((sec*1000).msecs);
+	Thread.sleep(door_wait);
 	doorLight(0);
 }
 
@@ -69,7 +97,7 @@ void run_movement (Tid loggerTid, int num_floors) {
 					|| current_floor == num_floors-1
 					){
                     motorDirection(Dirn.stop);
-					door_open(1);
+					door_open();
                     writeln("This is the target floor; stopping.");
 					order_list_thread.send(FloorSensor(current_floor));
                 }
@@ -90,7 +118,7 @@ void run_movement (Tid loggerTid, int num_floors) {
 }
 
 void main(){
-	int num_floors=4;
+	config_init();
     initElevIO("localhost", 15657, num_floors);
 	Tid movement_tid = spawn(&run_movement, thisTid,num_floors);
     spawn(&pollFloorSensor, movement_tid);
