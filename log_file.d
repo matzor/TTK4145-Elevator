@@ -41,6 +41,19 @@ int[] read_log(){
 	}
 }
 
+void log_set_floor(int floor, CallButton.Call call){
+	log_put_entry(1, floor, call);
+}
+
+void log_clear_floor(int floor, CallButton.Call call){
+	log_put_entry(0, floor, call);
+}
+
+
+/* --- Private --- */
+
+/*	If for some reason log is corrupted (should in theory never happen),
+ 	add a cab call to all floors to be safe that all floors will be served */
 int[] fix_log(){
 	int[] new_log_content;
 	new_log_content.length = number_of_floors*3;
@@ -66,12 +79,4 @@ void log_put_entry(int floor_state, int floor, CallButton.Call call){
 	else {type = 2; }
 	log_contents[m*type + floor] = floor_state;
 	write_log(log_contents);
-}
-
-void log_set_floor(int floor, CallButton.Call call){
-	log_put_entry(1, floor, call);
-}
-
-void log_clear_floor(int floor, CallButton.Call call){
-	log_put_entry(0, floor, call);
 }
