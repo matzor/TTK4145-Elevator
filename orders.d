@@ -181,7 +181,11 @@ void run_order_list (int numfloors, int startfloor) {
 				else{
 					orderlist.set_order(n.floor, n.call);
 				}
-				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
+				int next_order_floor=orderlist.get_next_order_floor();
+				if(next_order_floor!=-1){
+					floor=-1;
+				}
+				movement_thread.send(TargetFloor(next_order_floor));
 			},
 			(Obstruction a){
 				orderlist.printout();
