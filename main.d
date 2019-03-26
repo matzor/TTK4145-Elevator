@@ -56,9 +56,7 @@ void run_movement (Tid loggerTid, int num_floors) {
 	);
 	if(!start_at_floor){
 		motorDirection(Dirn.up);
-		order_list_thread.send(CallButton(1,CallButton.Call.cab));
 	} else{
-		order_list_thread.send(CallButton(0,CallButton.Call.cab));
 		motorDirection(Dirn.down);
 	}
 	while(true){
@@ -69,17 +67,11 @@ void run_movement (Tid loggerTid, int num_floors) {
                 	target_floor = new_target;
                 	log("Got new order to floor "~to!string(target_floor));
 					if (target_floor > current_floor) {
-						if(current_floor!=-1){
-	                    	motorDirection(Dirn.up);
-						}
+	              	    motorDirection(Dirn.up);
 						order_list_thread.send(MotorDirUpdate(Dirn.up));
-						current_floor=-1;
 	                } else if (target_floor < current_floor) {
-						if(current_floor!=-1){
-    	                	motorDirection(Dirn.down);
-						}
+    	                motorDirection(Dirn.down);
 						order_list_thread.send(MotorDirUpdate(Dirn.down));
-						current_floor=-1;
         	        }
 					else{
 						order_list_thread.send(FloorSensor(current_floor));
@@ -89,7 +81,6 @@ void run_movement (Tid loggerTid, int num_floors) {
 				else{ writeln("finished all orders"); }
             },
             (FloorSensor floor_sensor){
-
                 current_floor = floor_sensor;
                 writeln("Floor sensor detected floor "~to!string(current_floor)~".");
                 if (current_floor == target_floor
