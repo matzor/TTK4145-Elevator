@@ -19,7 +19,7 @@ struct TargetFloor {
 }
 
 class OrderList {
-	class Order{
+	public class Order{
 		public int floor;
 		public CallButton.Call call;
 		public bool order_here;
