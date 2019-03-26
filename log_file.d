@@ -4,27 +4,49 @@ import 	std.stdio,
 		std.string,
 		elevio;
 
+private __gshared int           number_of_floors;
+
 void init_log(int floors){
-	int entries = 3*floors;
+	number_of_floors = floors;
+	int entries = 3*number_of_floors;
 	string filename="log.lg";
+	int[] new_log_content;
+	new_log_content.length = number_of_floors*3;
 	if(!exists(filename)){
-		auto f = File(filename, "w");
-		for(int i = 0; i < entries; i++){
-			f.writeln("0");
+		write_log(new_log_content);
+	}
+	else{
+		auto log_contents = read_log();
+		if (log_contents.length < number_of_floors*3){
+			fix_log();
 		}
-		f.close();
 	}
 }
 
 int[] read_log(){
-	string[] log_contents;
-	log_contents = readText("log.lg").split;
-	int[] int_log;
-	int_log.length = log_contents.length;
-	for(int i = 0; i<log_contents.length; i++){
-		int_log[i] = to!int(log_contents[i]);
+	try{
+		string[] log_contents;
+		log_contents = readText("log.lg").split;
+		int[] int_log;
+		int_log.length = log_contents.length;
+		for(int i = 0; i<log_contents.length; i++){
+			int_log[i] = to!int(log_contents[i]);
+		}
+		return int_log;
 	}
-	return int_log;
+	catch(Exception e){
+		writeln("LOG ERROR: ", e);
+		auto new_log_content = fix_log();
+		return new_log_content;
+	}
+}
+
+int[] fix_log(){
+	int[] new_log_content;
+	new_log_content.length = number_of_floors*3;
+	new_log_content[0 .. 3] = 1;
+	write_log(new_log_content);
+	return new_log_content;
 }
 
 void write_log(int[] log_contents){
@@ -36,7 +58,7 @@ void write_log(int[] log_contents){
 }
 
 void log_put_entry(int floor_state, int floor, CallButton.Call call){
-	auto log_contents = read_log;
+	auto log_contents = read_log();
 	int m = to!int(log_contents.length / 3);
 	int type;
 	if (call == CallButton.Call.cab){type = 0; }
