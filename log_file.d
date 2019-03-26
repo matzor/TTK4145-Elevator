@@ -44,7 +44,7 @@ int[] read_log(){
 int[] fix_log(){
 	int[] new_log_content;
 	new_log_content.length = number_of_floors*3;
-	new_log_content[0 .. 3] = 1;
+	new_log_content[0 .. 4] = 1;
 	write_log(new_log_content);
 	return new_log_content;
 }
