@@ -202,7 +202,7 @@ void udp_send(Udp_msg msg){
 }
 
 
-void networkMain(Tid communication_thread_id){
+void network_main(Tid communication_thread_id){
         auto communication_thread = communication_thread_id;
         network_init();
         auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);

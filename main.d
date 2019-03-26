@@ -102,7 +102,7 @@ void main(){
 
     /*TODO: Fix initial state of bidding thread*/
 	auto bidding_thread = spawn(&bidding_main,0,Dirn.stop,order_list_tid);
-	auto network_main_tid = spawn(&network.networkMain, bidding_thread);
+	auto network_main_tid = spawn(&network.network_main, bidding_thread);
 
     spawn(&pollCallButtons, network_main_tid);
 
