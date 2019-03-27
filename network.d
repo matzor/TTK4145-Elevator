@@ -23,7 +23,7 @@ private __gshared ubyte         _id;
 private __gshared Tid           txThread, rxThread;
 
 ubyte id(){
-    return _id;
+	return _id;
 }
 
 void network_init(){
@@ -80,32 +80,32 @@ struct Finished_order{
 }
 
 string udp_msg_to_string(Udp_msg msg){
-    string str = to!string(msg.srcId)
-        ~ "," ~ to!string(msg.dstId)
-        ~ "," ~ to!string(msg.msgtype)
-        ~ "," ~ to!string(msg.floor)
-        ~ "," ~ to!string(msg.bid)
-        ~ "," ~ to!string(msg.fines)
-        ~ "," ~ to!string(msg.new_order)
-        ~ "," ~ to!string(msg.dir);
-    return str;
+	string str = to!string(msg.srcId)
+		~ "," ~ to!string(msg.dstId)
+		~ "," ~ to!string(msg.msgtype)
+		~ "," ~ to!string(msg.floor)
+		~ "," ~ to!string(msg.bid)
+		~ "," ~ to!string(msg.fines)
+		~ "," ~ to!string(msg.new_order)
+		~ "," ~ to!string(msg.dir);
+	return str;
 }
 
 Udp_msg string_to_udp_msg(string str){
-      Udp_msg msg;
-      auto temp     = str.splitter(',').array;
-      if (temp.length >= 7){
-          msg.srcId     = to!ubyte(temp[0]);
-          msg.dstId     = to!ubyte(temp[1]);
-          msg.msgtype   = to!char(temp[2]);
-          msg.floor     = to!int(temp[3]);
-          msg.bid       = to!int(temp[4]);
-          msg.fines     = to!ubyte(temp[5]);
-          msg.new_order = to!bool(temp[6]);
-          msg.dir       = to!int(temp[7]);
-      }
-      else{writeln("Corrupt message format");}
-      return msg;
+	Udp_msg msg;
+	auto temp     = str.splitter(',').array;
+	if (temp.length >= 7){
+		msg.srcId     = to!ubyte(temp[0]);
+		msg.dstId     = to!ubyte(temp[1]);
+		msg.msgtype   = to!char(temp[2]);
+		msg.floor     = to!int(temp[3]);
+		msg.bid       = to!int(temp[4]);
+		msg.fines     = to!ubyte(temp[5]);
+		msg.new_order = to!bool(temp[6]);
+		msg.dir       = to!int(temp[7]);
+	}
+	else{writeln("Corrupt message format");}
+	return msg;
 }
 
 Udp_msg callButton_to_udp_msg(CallButton btn){
@@ -152,56 +152,56 @@ void send_finished_order(Finished_order order){
 }
 
 void udp_tx(){
-        scope(exit) writeln(__FUNCTION__, " died");
-        try {
+	scope(exit) writeln(__FUNCTION__, " died");
+	try {
 
-        auto    addr    = new InternetAddress("255.255.255.255", com_port);
-        auto    sock    = new UdpSocket();
+		auto    addr    = new InternetAddress("255.255.255.255", com_port);
+		auto    sock    = new UdpSocket();
 
-        sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
-        sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-        writeln(__FUNCTION__, " started");
+		sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
+		sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
+		writeln(__FUNCTION__, " started");
 
-        while(true){
-        receive(
-            (Udp_msg msg){
-                auto str_msg = udp_msg_to_string(msg);
-                sock.sendTo(str_msg, addr);
-            }
-            );
-        }
-        }catch(Throwable t){ t.writeln; throw t; }
+		while(true){
+			receive(
+					(Udp_msg msg){
+					auto str_msg = udp_msg_to_string(msg);
+					sock.sendTo(str_msg, addr);
+					}
+				   );
+		}
+	}catch(Throwable t){ t.writeln; throw t; }
 }
 
 
 void udp_rx(){
-        scope(exit) writeln(__FUNCTION__, " died");
-        try {
+	scope(exit) writeln(__FUNCTION__, " died");
+	try {
 
-        auto              addr    = new InternetAddress(com_port);
-        auto              sock    = new UdpSocket();
-        char[1024]        buf     = "";
+		auto              addr    = new InternetAddress(com_port);
+		auto              sock    = new UdpSocket();
+		char[1024]        buf     = "";
 
-        sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
-        sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-        sock.bind(addr);
-        writeln(__FUNCTION__, " started");
+		sock.setOption(SocketOptionLevel.SOCKET, SocketOption.BROADCAST, 1);
+		sock.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
+		sock.bind(addr);
+		writeln(__FUNCTION__, " started");
 
-        while(true){
-                auto buf_length = sock.receive(buf);
-                if (buf_length>0) {
-                        auto received_msg = to!string(buf[0 .. buf_length]);
-                        auto msg = string_to_udp_msg(received_msg);
-                        ownerTid.send(msg);
-                }
-        }
+		while(true){
+			auto buf_length = sock.receive(buf);
+			if (buf_length>0) {
+				auto received_msg = to!string(buf[0 .. buf_length]);
+				auto msg = string_to_udp_msg(received_msg);
+				ownerTid.send(msg);
+			}
+		}
 
-        } catch(Throwable t){ t.writeln;  throw t; }
+	} catch(Throwable t){ t.writeln;  throw t; }
 }
 
 void udp_send(Udp_msg msg){
-        msg.srcId = _id;
-        txThread.send(msg);
+	msg.srcId = _id;
+	txThread.send(msg);
 }
 
 
@@ -218,6 +218,7 @@ void network_main(Tid communication_thread_id){
                         /*TODO: Handle PeerList updates
                         what do we even do with this information!?*/
                         writeln("Received peerlist: ", p);
+						//TODO: Add communication send p
                         },
                 (CallButton btn){
                         auto msg = callButton_to_udp_msg(btn);
