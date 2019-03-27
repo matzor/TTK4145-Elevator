@@ -18,6 +18,11 @@ struct TargetFloor {
 	alias floor this;
 }
 
+struct AlreadyOnFloor{ 
+	int floor;
+	alias floor this;
+}
+
 class OrderList {
 	class Order{
 		public int floor;
@@ -58,8 +63,13 @@ class OrderList {
 		return -1;
 	}
 
-	void set_order(int floor, CallButton.Call call) {
+	bool set_order(int floor, CallButton.Call call) {
 		Order order = get_order(floor, call);
+		if(call==CallButton.Call.cab){
+			if(order.cab_here){ return 0;}
+		} else{
+			if(order.order_here){ return 0;}
+		}
 		log_set_floor(floor, call);
 		callButtonLight(floor, call, 1);
 		if (call == CallButton.Call.cab) {
@@ -67,6 +77,7 @@ class OrderList {
 		} else {
 			order.order_here = true;
 		}
+		return 1;
 	}
 
 	void finish_order (int floor, CallButton.Call call) {
@@ -175,17 +186,19 @@ void run_order_list (int numfloors, int startfloor) {
 				motor_dir = m;
 			},
 			(CallButton n) {
-				if(n.floor==floor){
-					//writeln("Already here");
+				if(orderlist.set_order(n.floor, n.call)){
+					int next_order_floor=orderlist.get_next_order_floor();
+					if(next_order_floor!=-1){
+						floor=-1;
+					}
+					movement_thread.send(TargetFloor(next_order_floor));
 				}
-				else{
-					orderlist.set_order(n.floor, n.call);
-				}
-				int next_order_floor=orderlist.get_next_order_floor();
-				if(next_order_floor!=-1){
-					floor=-1;
-				}
-				movement_thread.send(TargetFloor(next_order_floor));
+			},
+			(AlreadyOnFloor a){
+				orderlist.finish_order(a, CallButton.Call.hallUp);
+				orderlist.finish_order(a, CallButton.Call.hallDown);
+				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
+				writeln(orderlist.get_next_order_floor());
 			},
 			(Obstruction a){
 				orderlist.printout();

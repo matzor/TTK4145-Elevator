@@ -69,12 +69,16 @@ void run_movement (Tid loggerTid, int num_floors) {
 					if (target_floor > current_floor) {
 	              	    motorDirection(Dirn.up);
 						order_list_thread.send(MotorDirUpdate(Dirn.up));
+						current_floor=-1;
 	                } else if (target_floor < current_floor) {
     	                motorDirection(Dirn.down);
 						order_list_thread.send(MotorDirUpdate(Dirn.down));
+						current_floor=-1;
         	        }
 					else{
-						order_list_thread.send(FloorSensor(current_floor));
+                    	motorDirection(Dirn.stop);
+						door_open();
+						order_list_thread.send(AlreadyOnFloor(current_floor));
 						writeln("Already on target floor");
 					}
 				}
