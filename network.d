@@ -20,7 +20,6 @@ private __gshared int           timeout_ms          = 550;
 private __gshared Duration      timeout;
 private __gshared string        id_str              = "default";
 private __gshared ubyte         _id;
-private __gshared int           retransmit_count    = 5;        //TODO: do we need this anymore?
 private __gshared Tid           txThread, rxThread;
 
 ubyte id(){
@@ -38,10 +37,9 @@ void network_init(){
             "net_peer_timeout",         &timeout_ms,
             "net_peer_interval",        &interval_ms,
             "net_peer_id",              &id_str,
-            "net_retransmit_count",     &retransmit_count,
         );
 
-        writeln("Network init complete, config file read successfully");
+        writeln("Network config file read successfully");
 
     } catch(Exception e){
         writeln("Unable to load net config:\n", e.msg);
@@ -50,15 +48,18 @@ void network_init(){
     timeout = timeout_ms.msecs;
     interval = interval_ms.msecs;
 
-    if(id_str == "default"){
-        try{
-                _id = 1;
-        }
-        catch(Exception e){
-            writeln("Unable to resolve id:\n", e.msg);}
-    } else {
-        _id = id_str.to!ubyte;
-    }
+    try{
+            if(id_str == "default"){
+                import std.random;
+                _id = to!ubyte(uniform(1, 255));
+            }
+            else {
+                _id = id_str.to!ubyte;
+            }
+        }catch(Exception e){
+            writeln("Unable to resolve id:\n", e.msg, "\nUsing id 1, might be bad yo");
+            _id = 1;
+            }
 }
 
 struct Udp_msg{
