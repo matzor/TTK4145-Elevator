@@ -1,15 +1,16 @@
 import 	std.stdio,
 		std.file,
 		std.conv,
-		std.string,
-		elevio;
+		std.string;
+
+import	elevio;
 
 private __gshared int           number_of_floors;
+private __gshared string 		filename			= "log.lg";
 
 void init_log(int floors){
 	number_of_floors = floors;
 	int entries = 3*number_of_floors;
-	string filename="log.lg";
 	int[] new_log_content;
 	new_log_content.length = number_of_floors*3;
 	if(!exists(filename)){
@@ -26,7 +27,7 @@ void init_log(int floors){
 int[] read_log(){
 	try{
 		string[] log_contents;
-		log_contents = readText("log.lg").split;
+		log_contents = readText(filename).split;
 		int[] int_log;
 		int_log.length = log_contents.length;
 		for(int i = 0; i<log_contents.length; i++){
@@ -63,7 +64,7 @@ int[] fix_log(){
 }
 
 void write_log(int[] log_contents){
-	auto f = File("log.lg", "w");
+	auto f = File(filename, "w");
 	foreach(i; log_contents){
 		f.writeln(to!string(i));
 	}
