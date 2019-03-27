@@ -54,6 +54,7 @@ void run_movement (Tid loggerTid, int num_floors) {
 
     int target_floor = -1;
     int current_floor = -1;
+	Dirn current_dir = Dirn.stop;
 	Tid order_list_thread = receiveOnly!InitTid;
 	int start_at_floor=1;
 	receiveTimeout(3000.msecs,
@@ -75,15 +76,15 @@ void run_movement (Tid loggerTid, int num_floors) {
                 	log("Got new order to floor "~to!string(target_floor));
 					if (target_floor > current_floor) {
 	              	    motorDirection(Dirn.up);
+						current_dir=Dirn.up;
 						order_list_thread.send(MotorDirUpdate(Dirn.up));	
-						//current_floor=-1
 	                } else if (target_floor < current_floor) {
     	                motorDirection(Dirn.down);
+						current_dir=Dirn.down;
 						order_list_thread.send(MotorDirUpdate(Dirn.down));
-						//current_floor=-1;
+						
         	        }
-					else{
-                    	motorDirection(Dirn.stop);
+					else if(current_dir==Dirn.stop){
 						door_open();
 						order_list_thread.send(AlreadyOnFloor(current_floor));
 						writeln("Already on target floor");
@@ -93,17 +94,18 @@ void run_movement (Tid loggerTid, int num_floors) {
             },
             (FloorSensor floor_sensor){
                 current_floor = floor_sensor;
-				//rget_floor=0;
                 writeln("Floor sensor detected floor "~to!string(current_floor)~".");
                 if (current_floor == target_floor
 					|| current_floor == 0
 					|| current_floor == num_floors-1
 					){
                     motorDirection(Dirn.stop);
+					current_dir=Dirn.stop;
 					door_open();
                     writeln("This is the target floor; stopping.");
 					order_list_thread.send(FloorSensor(current_floor));
                 }
+				//current_floor=-1;
             },
             (Obstruction a){
 				writeln("CFloor: ",current_floor);
