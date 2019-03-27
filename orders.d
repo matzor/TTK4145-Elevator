@@ -191,6 +191,7 @@ void run_order_list (int numfloors, int startfloor) {
 			(CallButton n) {
 				if(orderlist.set_order(n.floor, n.call)){
 					int next_order_floor=orderlist.get_next_order_floor();
+					writeln("target: ",n.floor," Current: ", floor);
 					if(next_order_floor!=-1){
 						floor=-1;
 					}
@@ -200,8 +201,7 @@ void run_order_list (int numfloors, int startfloor) {
 			(AlreadyOnFloor a){
 				orderlist.finish_order(a, CallButton.Call.hallUp);
 				orderlist.finish_order(a, CallButton.Call.hallDown);
-				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
-				writeln(orderlist.get_next_order_floor());
+				//movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
 			},
 			(Obstruction a){
 				orderlist.printout();

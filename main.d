@@ -75,12 +75,12 @@ void run_movement (Tid loggerTid, int num_floors) {
                 	log("Got new order to floor "~to!string(target_floor));
 					if (target_floor > current_floor) {
 	              	    motorDirection(Dirn.up);
-						order_list_thread.send(MotorDirUpdate(Dirn.up));
-						current_floor=-1;
+						order_list_thread.send(MotorDirUpdate(Dirn.up));	
+						//current_floor=-1
 	                } else if (target_floor < current_floor) {
     	                motorDirection(Dirn.down);
 						order_list_thread.send(MotorDirUpdate(Dirn.down));
-						current_floor=-1;
+						//current_floor=-1;
         	        }
 					else{
                     	motorDirection(Dirn.stop);
@@ -93,6 +93,7 @@ void run_movement (Tid loggerTid, int num_floors) {
             },
             (FloorSensor floor_sensor){
                 current_floor = floor_sensor;
+				//rget_floor=0;
                 writeln("Floor sensor detected floor "~to!string(current_floor)~".");
                 if (current_floor == target_floor
 					|| current_floor == 0
