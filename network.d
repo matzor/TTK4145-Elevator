@@ -205,8 +205,8 @@ void udp_send(Udp_msg msg){
 }
 
 
-void network_main(Tid communication_thread_id){
-        auto communication_thread = communication_thread_id;
+void network_main(Tid bidding_thread_id){
+        auto bidding_thread = bidding_thread_id;
         network_init();
         auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
         txThread                  = spawn(&udp_tx);
@@ -218,7 +218,7 @@ void network_main(Tid communication_thread_id){
                         /*TODO: Handle PeerList updates
                         what do we even do with this information!?*/
                         writeln("Received peerlist: ", p);
-						//TODO: Add communication send p
+                        bidding_thread.send(p);
                         },
                 (CallButton btn){
                         auto msg = callButton_to_udp_msg(btn);
@@ -234,11 +234,11 @@ void network_main(Tid communication_thread_id){
                                 {
                                         case 'i':
                                                 if (msg.srcId == _id){ //only want its own internals
-                                                        communication_thread.send(msg);
+                                                        bidding_thread.send(msg);
                                                 }
                                                 break;
                                         default:
-                                                communication_thread.send(msg);
+                                                bidding_thread.send(msg);
                                                 break;
                                 }
 
