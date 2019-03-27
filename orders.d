@@ -1,7 +1,10 @@
-import std.array,std.range;
-import std.stdio;
-import std.concurrency;
-import elevio, log_file;
+import 	std.array,
+		std.range,
+		std.stdio,
+		std.concurrency;
+		
+import 	elevio,
+		log_file;
 
 struct MotorDirUpdate {
 	Dirn dir;

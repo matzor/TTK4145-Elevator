@@ -1,11 +1,11 @@
-import std.concurrency;
-import std.conv;
-import std.datetime;
-import std.string;
-import std.socket;
-import std.stdio;
-import core.sync.mutex;
-import core.thread;
+import  std.concurrency,
+        std.conv,
+        std.datetime,
+        std.string,
+        std.socket,
+        std.stdio,
+        core.sync.mutex,
+        core.thread;
 
 enum HallCall : int {
     up,

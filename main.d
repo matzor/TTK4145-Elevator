@@ -1,5 +1,11 @@
-import std.stdio, std.conv, std.concurrency, core.thread;
-import elevio, orders, network, bidding;
+import  std.stdio,
+        std.conv,
+        std.concurrency,
+        core.thread;
+import  elevio,
+        orders,
+        network,
+        bidding;
 
 private __gshared   int           num_floors            = 4;
 private __gshared   int           door_wait_ms          = 1000;
@@ -41,6 +47,7 @@ void door_open(){
 }
 
 void run_movement (Tid loggerTid, int num_floors) {
+    writeln("Elevator initializing");
     void log(string msg) {
         loggerTid.send(ElevatorControllerLog(msg));
     }

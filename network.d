@@ -7,8 +7,9 @@ import  std.array,
         std.socket,
         std.stdio,
         std.string,
-        std.datetime,
-        network_peers,
+        std.datetime;
+
+import  network_peers,
         elevio;
 
 private __gshared ushort        broadcastport       = 19668;

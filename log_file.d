@@ -1,8 +1,9 @@
 import 	std.stdio,
 		std.file,
 		std.conv,
-		std.string,
-		elevio;
+		std.string;
+		
+import	elevio;
 
 private __gshared int           number_of_floors;
 
