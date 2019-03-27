@@ -49,6 +49,7 @@ void network_init(){
     interval = interval_ms.msecs;
 
     try{
+            //_id should be specified in config file, don't leave at default please
             if(id_str == "default"){
                 import std.random;
                 _id = to!ubyte(uniform(1, 255));
