@@ -87,40 +87,54 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
 	}
 }
 
-OrderAuction retrieve_auction_from_list (CallButton order) {
-	return auctions[order];
+OrderAuction get_auction (CallButton order) {
+	return auctions.get(order, null);
 }
 
 void auction_watchdog(CallButton order) {
 	writeln("  auction watchdog started");
+	bool was_interrupted = false;
 	receiveTimeout( (1000*1).msecs, // 1-second timeout
 		(AuctionCompleteMsg msg) {
-			return;
+			writeln("  auction watchdog killed");
+			was_interrupted = true;
 		},
 	);
-	ownerTid.send(BidTimeoutMsg(order));
+	if (was_interrupted) {
+		writeln("  auction watchdog triggered");
+		ownerTid.send(BidTimeoutMsg(order));
+	}
 }
 
 void handle_new_auction(Udp_msg msg) {
 	CallButton order = udp_msg_to_call(msg);
 	// only one auction per call button
-	OrderAuction auction = retrieve_auction_from_list(order);
-	if (auction !is null) return;
+	writeln("  finding auction...");
+	OrderAuction auction = get_auction(order);
+	if (auction !is null) {
+		writeln("  auction already running. Ignoring...");
+		return;
+	}
+	writeln("  no auction for order; creating new...");
 	// init auction
 	auction = new OrderAuction();
 	auction.our_bid = calculate_own_cost(order);
 	auction.bid_count = 1;
-	auction.this_elevator_is_winning = false;
+	auction.this_elevator_is_winning = true;
 	// setup auction timeout
+	writeln("  spawning watchdog");
 	auction.timeout_thread = spawn(&auction_watchdog, order);
+	writeln("  watchdog spawned");
 	// add to auction list
+	writeln("  adding auction to auction list");
 	auctions[order] = auction;
+	check_bidding_complete(order);
 }
 
 void handle_bid(Udp_msg msg) {
 	// Look up in auction list
 	CallButton order = udp_msg_to_call(msg);
-	OrderAuction auction = retrieve_auction_from_list(order);
+	OrderAuction auction = get_auction(order);
 	if (auction is null) {
 		return;
 	}
@@ -128,7 +142,12 @@ void handle_bid(Udp_msg msg) {
 	if (auction.our_bid > msg.bid) {
 		auction.this_elevator_is_winning = false;
 	}
-	// Is bidding complete?	
+	check_bidding_complete(order);
+}
+
+void check_bidding_complete(CallButton order) {
+	OrderAuction auction = get_auction(order);
+	writeln("  checking if bidding is complete. peer_count=" ~ to!string(peer_count) ~ ", bid_count=" ~ to!string(auction.bid_count));
 	if (auction.bid_count >= peer_count) {
 		auction.timeout_thread.send(AuctionCompleteMsg());
 		complete_auction(order);
@@ -136,9 +155,10 @@ void handle_bid(Udp_msg msg) {
 }
 
 void complete_auction(CallButton order) {
-	OrderAuction auction = retrieve_auction_from_list(order);
+	OrderAuction auction = get_auction(order);
 	// Register order if auction was won
 	if (auction.this_elevator_is_winning) {
+		writeln("  THIS ELEVATOR WON!!");
 		order_list_tid.send(order);
 	}
 	// Setup watchdog
@@ -146,8 +166,9 @@ void complete_auction(CallButton order) {
 }
 
 void handle_completed_command(Udp_msg msg) {
+	writeln("  handling COMPLETED order");
 	CallButton order = udp_msg_to_call(msg);
-	auctions[order].timeout_thread.send(OrderConfirmedMsg());
+	get_auction(order).timeout_thread.send(OrderConfirmedMsg());
 	cleanup_auction(order);
 }
 
