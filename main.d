@@ -95,10 +95,11 @@ void run_movement (Tid loggerTid, int num_floors) {
             (FloorSensor floor_sensor){
                 current_floor = floor_sensor;
                 writeln("Floor sensor detected floor "~to!string(current_floor)~".");
-                if (current_floor == target_floor
+                if (
+					current_floor == target_floor
 					|| current_floor == 0
 					|| current_floor == num_floors-1
-					){
+				){
                     motorDirection(Dirn.stop);
 					current_dir=Dirn.stop;
 					door_open();

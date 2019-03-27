@@ -174,7 +174,11 @@ void run_order_list (int numfloors, int startfloor) {
 				floor = f;
 				CallButton.Call dir_to_calldir=dirn_to_call(motor_dir);
 				orderlist.finish_order(floor, dir_to_calldir);
-				if(orderlist.get_next_order_floor == floor){
+				if(
+					orderlist.get_next_order_floor == floor
+					|| floor==0
+					|| floor==numfloors-1
+				){
 					if(dir_to_calldir==CallButton.Call.hallUp){
 						dir_to_calldir=CallButton.Call.hallDown;
 					}
