@@ -9,7 +9,8 @@ import
 	elevio,
 	main,
 	network,
-	log_file;
+	log_file,
+	bidding;
 
 private Tid[ThreadName] threads;
 
@@ -174,11 +175,10 @@ void run_order_list (int numfloors, int startfloor) {
 				floor = f;
 				CallButton.Call dir_to_calldir = dirn_to_call(motor_dir);
 				CallButton btn = CallButton(floor, dir_to_calldir);
-				orderlist.finish_order(btn);
 				if(
 					orderlist.get_next_order_floor == floor
 					|| floor == 0
-					|| floor == numfloors-1
+					|| floor == numfloors - 1
 				){
 					if(dir_to_calldir==CallButton.Call.hallUp) {
 						dir_to_calldir=CallButton.Call.hallDown;
@@ -193,14 +193,15 @@ void run_order_list (int numfloors, int startfloor) {
 				motor_dir = m;
 			},
 			(CallButton n) {
-				if(orderlist.set_order(n.floor, n.call)) {
+				//if(orderlist.set_order(n.floor, n.call)) {
+					orderlist.set_order(n.floor, n.call);
 					int next_order_floor = orderlist.get_next_order_floor();
 					writeln("target: ", n.floor, " Current: ", floor);
 					if(next_order_floor != -1) {
 						floor=-1;
 					}
 					movement_thread.send(TargetFloor(next_order_floor));
-				}
+				//}
 			},
 			(AlreadyOnFloor a) {
 				orderlist.finish_order(CallButton(a, CallButton.Call.hallUp));

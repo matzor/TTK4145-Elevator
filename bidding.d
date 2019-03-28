@@ -14,6 +14,7 @@ private __gshared OrderAuction[CallButton] auctions;
 private __gshared int peer_count;
 private __gshared Tid[ThreadName] threads;
 private __gshared Tid order_list_tid;
+private __gshared int order_dog_timer = 30;
 
 /*Move this to Orders.d (?)*/
 struct State_vector {
@@ -102,14 +103,17 @@ OrderAuction get_auction (CallButton order) {
 
 void auction_watchdog(CallButton order) {
 	writeln("  auction watchdog started");
+	bool was_terminated=false;
 	receiveTimeout( (1000*2).msecs, // 2-second timeout
 		(AuctionCompleteMsg msg) {
-			writeln("  auction watchdog killed");
-			return;
+			writeln("  auction watchdog terminated");
+			was_terminated=true;
 		},
 	);
-	writeln("  auction watchdog triggered: ");
-	ownerTid.send(BidTimeoutMsg(order));
+	if(was_terminated==false){
+		writeln("  auction watchdog triggered: ");
+		ownerTid.send(BidTimeoutMsg(order));
+	}
 }
 
 void handle_new_auction(Udp_msg msg) {
@@ -183,8 +187,13 @@ void complete_auction(CallButton order) {
 		writeln("  THIS ELEVATOR WON!!");
 		order_list_tid.send(order);
 	}
+	else{
+		writeln(" THIS ELEVATOR LOST!!");
+	}
 	// Setup watchdog
-	auction.timeout_thread = spawn(&order_watchdog, order, 30);
+	//if(auction.timeout_thread is null){
+		auction.timeout_thread = spawn(&order_watchdog, order, order_dog_timer);
+	//}
 }
 
 void handle_completed_command(Udp_msg msg) {
@@ -201,13 +210,18 @@ void handle_completed_command(Udp_msg msg) {
 }
 
 void order_watchdog(CallButton order, int timeout_sec) {
+	writeln("Order whatchdog start");
+	bool is_terminated = false;
 	receiveTimeout((timeout_sec*1000).msecs,
 		(OrderConfirmedMsg c) {
-			return;
+			is_terminated=true;
+			writeln("Order watchdog terminated");
 		},
 	);
-	ownerTid.send(OrderTimeoutMsg(order));
-	return;
+	if (is_terminated == false){
+		order_list_tid.send(order);
+		writeln("Order watchdog sent order to order_list");
+	}
 }
 
 void cleanup_auction(CallButton order) {
