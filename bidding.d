@@ -13,7 +13,7 @@ private __gshared OrderAuction[CallButton] auctions;
 private __gshared int peer_count;
 private __gshared Tid[ThreadName] threads;
 private __gshared Tid order_list_tid;
-private __gshared int order_dog_timer = 30;
+private __gshared int order_dog_timer = 15;
 
 /*Move this to Orders.d (?)*/
 struct State_vector {
@@ -199,9 +199,7 @@ void complete_auction(CallButton order) {
 	}
 	else{writeln("  THIS ELEVATOR LOST! :(");}
 	// Setup watchdog
-	//if(auction.timeout_thread is null){
-		auction.timeout_thread = spawn(&order_watchdog, order, order_dog_timer);
-	//}
+	auction.timeout_thread = spawn(&order_watchdog, order, order_dog_timer);
 }
 
 void handle_completed_command(Udp_msg msg) {
@@ -220,10 +218,12 @@ void handle_completed_command(Udp_msg msg) {
 void order_watchdog(CallButton order, int timeout_sec) {
 	writeln("Order whatchdog start");
 	bool is_terminated = false;
+	callButtonLight(floor, order.call, 1);
 	receiveTimeout((timeout_sec*1000).msecs,
 		(OrderConfirmedMsg c) {
 			is_terminated=true;
-			writeln("Order watchdog terminated");
+			writeln("Order watchdog terminated");	
+		callButtonLight(floor, order.call, 0);
 		},
 	);
 	if (is_terminated == false){
