@@ -26,6 +26,7 @@ class OrderAuction {
 	int bid_count = 1;
 	bool this_elevator_is_winning = true;
 	Tid timeout_thread;
+	bool dog_owner=0;
 }
 
 // Elevator watchdog
@@ -146,7 +147,14 @@ void handle_new_auction(Udp_msg msg) {
 
 	// setup auction timeout --- moved to owner function
 	writeln("  spawning watchdog");
-	auction.timeout_thread = spawn(&auction_watchdog, order);
+	if (auction.dog_owner == true){
+		auction.timeout_thread = spawn(&auction_watchdog, order);
+		auction.dog_owner = true;
+	} else {
+		writeln( "Already have this order.");
+
+	}
+
 	writeln("  watchdog spawned");
 	// add to auction list
 	writeln("  adding auction to auction list");
@@ -184,6 +192,7 @@ void check_bidding_complete(CallButton order) {
 	writeln("  checking if bidding is complete. peer_count=" ~ to!string(peer_count) ~ ", bid_count=" ~ to!string(auction.bid_count));
 	if (auction.bid_count >= peer_count) {
 		auction.timeout_thread.send(AuctionCompleteMsg());
+		auction.dog_owner = false;
 		try{
 			complete_auction(order);
 		} catch(Exception e ){ writeln("Race condition");}
@@ -199,7 +208,12 @@ void complete_auction(CallButton order) {
 	}
 	else{writeln("  THIS ELEVATOR LOST! :(");}
 	// Setup watchdog
-	auction.timeout_thread = spawn(&order_watchdog, order, order_dog_timer);
+	if( auction.dog_owner == false) {
+		auction.timeout_thread = spawn(&order_watchdog, order, order_dog_timer);
+		auction.dog_owner = true;
+	} else {
+		writeln( "Already have this order.");
+	}
 }
 
 void handle_completed_command(Udp_msg msg) {
@@ -212,6 +226,7 @@ void handle_completed_command(Udp_msg msg) {
 		return;
 	}
 	auction.timeout_thread.send(OrderConfirmedMsg());
+	auction.dog_owner = false;
 	cleanup_auction(order);
 }
 
