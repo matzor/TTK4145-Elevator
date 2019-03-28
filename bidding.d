@@ -42,8 +42,10 @@ int calculate_own_cost(CallButton order) {
 	int own_cost;
 	int delta_floor = states.floor - order.floor;
 	int abs_delta_floor = delta_floor;
-	if (delta_floor < 0)	{abs_delta_floor = -delta_floor;}
+	if (delta_floor < 0) {abs_delta_floor = -delta_floor;}
+
 	own_cost += abs_delta_floor;
+
 	Dirn order_dir;
 	if (order.call == CallButton.Call.hallUp){order_dir = Dirn.up;}
 	else if (order.call == CallButton.Call.hallDown){order_dir = Dirn.down;}
@@ -52,8 +54,11 @@ int calculate_own_cost(CallButton order) {
 	//if(states.dir != order_dir){
 	//	own_cost += 10;
 	//}
-	own_cost+=5*abs_delta_floor;
-	own_cost+=id()%3;
+
+	// prevent two elevators from bidding the same
+	const int max_id = 256;
+	own_cost *= max_id;
+	own_cost += id();
 
 	if((states.dir == Dirn.stop) && (delta_floor == 0)){own_cost = 0;}
 	writeln("----------------CALCULATED OWN COST: ", own_cost);
