@@ -64,11 +64,13 @@ int[] fix_log(){
 }
 
 void write_log(int[] log_contents){
-	auto f = File(filename, "w");
-	foreach(i; log_contents){
-		f.writeln(to!string(i));
-	}
-	f.close();
+	try{
+		auto f = File(filename, "w");
+		foreach(i; log_contents){
+			f.writeln(to!string(i));
+		}
+		f.close();
+	}catch(Exception e) {writeln("Error writing log:\n", e);}
 }
 
 void log_put_entry(int floor_state, int floor, CallButton.Call call){
