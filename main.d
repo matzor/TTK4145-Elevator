@@ -115,7 +115,7 @@ void run_movement (int num_floors) {
 			},
 			(FloorSensor floor_sensor) {
 				current_floor = floor_sensor;
-
+                floorIndicator(current_floor);
 				writeln("Floor sensor detected floor " ~ to!string(current_floor) ~ ".");
 				if (
 					current_floor == target_floor

@@ -13,7 +13,7 @@ private __gshared OrderAuction[CallButton] auctions;
 private __gshared int peer_count;
 private __gshared Tid[ThreadName] threads;
 private __gshared Tid order_list_tid;
-private __gshared int order_dog_timer = 15;
+private __gshared int order_dog_timer = 30;
 
 /*Move this to Orders.d (?)*/
 struct State_vector {
