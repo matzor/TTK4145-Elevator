@@ -4,7 +4,7 @@ import
 	std.stdio,
 	std.conv,
 	std.concurrency;
-		
+
 import
 	elevio,
 	main,
@@ -23,7 +23,7 @@ struct TargetFloor {
 	alias floor this;
 }
 
-struct AlreadyOnFloor { 
+struct AlreadyOnFloor {
 	int floor;
 	alias floor this;
 }
@@ -205,7 +205,7 @@ void run_order_list (int numfloors, int startfloor) {
 			(AlreadyOnFloor a) {
 				orderlist.finish_order(CallButton(a, CallButton.Call.hallUp));
 				orderlist.finish_order(CallButton(a, CallButton.Call.hallDown));
-				//movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
+				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
 			},
 			(Obstruction a) {
 				orderlist.printout();

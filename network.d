@@ -202,20 +202,25 @@ void network_main() {
 	writeln("List received! " ~ to!string(threads));
 
 	auto bidding_thread = threads[ThreadName.bidding];
+	auto order_list = threads[ThreadName.order_list];
 	network_init();
 	auto network_peers_thread = spawn(&network_peers.init_network_peers, broadcastport, _id, interval, timeout);
 	txThread                  = spawn(&udp_tx);
 	rxThread                  = spawn(&udp_rx);
+	PeerList peers;
 
 	while(true) {
 		receive(
 			(PeerList p) {
 				writeln("Received peerlist: ", p);
+				peers = p;
 				bidding_thread.send(p);
 			},
 			(CallButton btn) {
-				auto msg = callButton_to_udp_msg(btn);
-				udp_send(msg);
+				if (peers.length > 0){
+					auto msg = callButton_to_udp_msg(btn);
+					udp_send(msg);
+				} else{order_list.send(btn);}
 			},
 			(Finished_order order) {
 				send_finished_order(order);
