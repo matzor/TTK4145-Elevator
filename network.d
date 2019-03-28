@@ -22,6 +22,7 @@ private __gshared Duration      timeout;
 private __gshared string        id_str              = "default";
 private __gshared ubyte         _id;
 private __gshared Tid           txThread, rxThread;
+private __gshared int 			retransmit_count 	= 3;
 
 ubyte id() {
 	return _id;
@@ -156,6 +157,8 @@ void udp_tx() {
 			receive(
 				(Udp_msg msg) {
 					auto str_msg = udp_msg_to_string(msg);
+					sock.sendTo(str_msg, addr);
+					sock.sendTo(str_msg, addr);
 					sock.sendTo(str_msg, addr);
 				}
 			);

@@ -206,7 +206,7 @@ void handle_completed_command(Udp_msg msg) {
 	writeln("  handling COMPLETED order");
 	CallButton order = udp_msg_to_call(msg);
 	OrderAuction auction = get_auction(order);
-
+	callButtonLight(order.floor, order.call, 0);
 	if (auction is null) {
 		writeln("  not auctioned order. Ignoring...");
 		return;
@@ -218,12 +218,12 @@ void handle_completed_command(Udp_msg msg) {
 void order_watchdog(CallButton order, int timeout_sec) {
 	writeln("Order whatchdog start");
 	bool is_terminated = false;
-	callButtonLight(floor, order.call, 1);
+	callButtonLight(order.floor, order.call, 1);
 	receiveTimeout((timeout_sec*1000).msecs,
 		(OrderConfirmedMsg c) {
 			is_terminated=true;
-			writeln("Order watchdog terminated");	
-		callButtonLight(floor, order.call, 0);
+			writeln("Order watchdog terminated");
+		callButtonLight(order.floor, order.call, 0);
 		},
 	);
 	if (is_terminated == false){
