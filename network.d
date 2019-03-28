@@ -39,6 +39,7 @@ void network_init() {
 				"net_peer_timeout",         &timeout_ms,
 				"net_peer_interval",        &interval_ms,
 				"net_peer_id",              &id_str,
+				"net_retransmit_count",		&retransmit_count,
 			  );
 		writeln("Network config file read successfully");
 	} catch(Exception e) {
@@ -157,9 +158,9 @@ void udp_tx() {
 			receive(
 				(Udp_msg msg) {
 					auto str_msg = udp_msg_to_string(msg);
-					sock.sendTo(str_msg, addr);
-					sock.sendTo(str_msg, addr);
-					sock.sendTo(str_msg, addr);
+					for (int i = 0; i < retransmit_count; i++){
+						sock.sendTo(str_msg, addr);
+					}
 				}
 			);
 		}
