@@ -8,8 +8,7 @@ import
 	network_peers,
 	main;
 
-private __gshared int current_floor;
-private __gshared Dirn current_direction;
+private __gshared State_vector states;
 private __gshared OrderAuction[CallButton] auctions;
 private __gshared int peer_count;
 private __gshared Tid[ThreadName] threads;
@@ -39,9 +38,22 @@ struct AuctionCompleteMsg {}
 
 int calculate_own_cost(CallButton order) {
 	// TODO: implement
-	import std.random;
-	current_floor = uniform(1, 1000);
-	return current_floor;
+	int own_cost;
+	int delta_floor = states.floor - order.floor;
+	int abs_delta_floor = delta_floor;
+	if (delta_floor < 0)	{abs_delta_floor = -delta_floor;}
+	own_cost += abs_delta_floor;
+	Dirn order_dir;
+	if (order.call == CallButton.Call.hallUp){order_dir = Dirn.up;}
+	else if (order.call == CallButton.Call.hallDown){order_dir = Dirn.down;}
+	else order_dir = Dirn.stop;
+
+	if(states.dir != order_dir){
+		own_cost += 10;
+	}
+	if((states.dir == Dirn.stop) && (delta_floor == 0)){own_cost = 0;}
+	writeln("----------------CALCULATED OWN COST: ", own_cost);
+	return own_cost;
 }
 
 void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thread) {
@@ -49,9 +61,8 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
 	Tid[ThreadName] threads;
 	receive((shared(Tid[ThreadName]) t) {threads = cast(Tid[ThreadName])t;});
 	writeln("List received! " ~ to!string(threads));
-
-	current_floor = current_floor;
-	current_direction = current_direction;
+	states.floor = current_floor;
+	states.dir = current_direction;
 	order_list_tid = order_list_thread;
 
 	while(true) {
@@ -84,8 +95,7 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
 				}
 			},
 			(State_vector state) {
-				current_floor = state.floor;
-				current_direction = state.dir;
+				states = state;
 			},
 			(PeerList p) {
 				peer_count = to!int(p.length);
@@ -187,9 +197,7 @@ void complete_auction(CallButton order) {
 		writeln("  THIS ELEVATOR WON!!");
 		order_list_tid.send(order);
 	}
-	else{
-		writeln(" THIS ELEVATOR LOST!!");
-	}
+	else{writeln("  THIS ELEVATOR LOST! :(");}
 	// Setup watchdog
 	//if(auction.timeout_thread is null){
 		auction.timeout_thread = spawn(&order_watchdog, order, order_dog_timer);
