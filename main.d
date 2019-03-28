@@ -60,6 +60,7 @@ void run_movement (int num_floors) {
 	receive((shared(Tid[ThreadName]) t) {threads = cast(Tid[ThreadName])t;});
 	writeln("List received! " ~ to!string(threads));
 	Tid order_list_thread = threads[ThreadName.order_list];
+	Tid bidding_thread = threads[ThreadName.bidding];
 
 	writeln("Elevator initializing");
 	void log(string msg) {
@@ -93,7 +94,7 @@ void run_movement (int num_floors) {
 					if (target_floor > current_floor) {
 						motorDirection(Dirn.up);
 						current_dir = Dirn.up;
-						order_list_thread.send(MotorDirUpdate(Dirn.up));	
+						order_list_thread.send(MotorDirUpdate(Dirn.up));
 					} else if (target_floor < current_floor) {
 						motorDirection(Dirn.down);
 						current_dir = Dirn.down;
@@ -109,6 +110,7 @@ void run_movement (int num_floors) {
 			},
 			(FloorSensor floor_sensor) {
 				current_floor = floor_sensor;
+
 				writeln("Floor sensor detected floor " ~ to!string(current_floor) ~ ".");
 				if (
 					current_floor == target_floor
@@ -121,6 +123,11 @@ void run_movement (int num_floors) {
 					writeln("This is the target floor; stopping.");
 					order_list_thread.send(FloorSensor(current_floor));
 				}
+				//Updating states of bidding thread
+				State_vector states;
+				states.dir = current_dir;
+				states.floor = current_floor;
+				bidding_thread.send(states);
 			},
 			(Obstruction a) {
 				writeln("CFloor: ", current_floor);
