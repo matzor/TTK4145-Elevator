@@ -55,13 +55,13 @@ int calculate_own_cost(CallButton order) {
 	//	own_cost += 10;
 	//}
 
+	if((states.dir == Dirn.stop) && (delta_floor == 0)){own_cost = 0;}
+	writeln("----------------CALCULATED OWN COST: ", own_cost);
+
 	// prevent two elevators from bidding the same
 	const int max_id = 256;
 	own_cost *= max_id;
 	own_cost += id();
-
-	if((states.dir == Dirn.stop) && (delta_floor == 0)){own_cost = 0;}
-	writeln("----------------CALCULATED OWN COST: ", own_cost);
 	return own_cost;
 }
 
