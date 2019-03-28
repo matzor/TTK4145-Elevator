@@ -60,8 +60,7 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
 				case 'e':
 					if (msg.new_order) {
 						writeln("Received NEW message of type EXTERNAL from id ", msg.srcId, " Floor ", msg.floor);
-						CallButton order1 = handle_new_auction(msg);
-						if(order1.floor!=-1) {auctions[order1].timeout_thread = spawn(&auction_watchdog, order1);}
+						handle_new_auction(msg);
 					} else {
 						writeln("Received BID message from id ", msg.srcId, ", Floor ", msg.floor, ", Bid ", msg.bid);
 						handle_bid(msg);
@@ -110,13 +109,13 @@ void auction_watchdog(CallButton order) {
 			was_interrupted = true;
 		},
 	);
-	if (!was_interrupted) {
-		writeln("  auction watchdog triggered: ");
+	if (was_interrupted) {
+		//writeln("  auction watchdog triggered: ");
 		ownerTid.send(BidTimeoutMsg(order));
 	}
 }
 
-CallButton handle_new_auction(Udp_msg msg) {
+void handle_new_auction(Udp_msg msg) {
 	CallButton order = udp_msg_to_call(msg);
 	// only one auction per call button
 	writeln("  finding auction...");
@@ -136,7 +135,7 @@ CallButton handle_new_auction(Udp_msg msg) {
 
 	// setup auction timeout --- moved to owner function
 	writeln("  spawning watchdog");
-	//auction.timeout_thread = spawn(&auction_watchdog, order);
+	auction.timeout_thread = spawn(&auction_watchdog, order);
 	writeln("  watchdog spawned");
 	// add to auction list
 	writeln("  adding auction to auction list");
