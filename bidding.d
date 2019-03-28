@@ -50,8 +50,11 @@ int calculate_own_cost(CallButton order) {
 	else order_dir = Dirn.stop;
 
 	if(states.dir != order_dir){
-		own_cost += 10;
+		own_cost += 20;
 	}
+	own_cost+=2*delta_floor;
+	own_cost+=id()%3;
+
 	if((states.dir == Dirn.stop) && (delta_floor == 0)){own_cost = 0;}
 	writeln("----------------CALCULATED OWN COST: ", own_cost);
 	return own_cost;
@@ -179,7 +182,7 @@ void handle_bid(Udp_msg msg) {
 		return;
 	}
 	import std.algorithm;
-	if( !(canFind(auction.received_bid_ids, msg.srcId)) ){	
+	if( !(canFind(auction.received_bid_ids, msg.srcId)) ){
 		auction.received_bid_ids ~=msg.srcId;
 		if (auction is null) {
 			return;

@@ -107,6 +107,11 @@ void run_movement (int num_floors) {
 				} else {
 					writeln("finished all orders");
 				}
+				//Updating states of bidding thread
+				State_vector states;
+				states.dir = current_dir;
+				states.floor = current_floor;
+				bidding_thread.send(states);
 			},
 			(FloorSensor floor_sensor) {
 				current_floor = floor_sensor;
@@ -123,11 +128,7 @@ void run_movement (int num_floors) {
 					writeln("This is the target floor; stopping.");
 					order_list_thread.send(FloorSensor(current_floor));
 				}
-				//Updating states of bidding thread
-				State_vector states;
-				states.dir = current_dir;
-				states.floor = current_floor;
-				bidding_thread.send(states);
+
 			},
 			(Obstruction a) {
 				writeln("CFloor: ", current_floor);
