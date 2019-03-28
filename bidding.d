@@ -72,8 +72,8 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
 					order_list_tid.send(btn);
 					break;
 				case 'c':
-					/*TODO: Handle confirmed orders, send to watchdog handler*/
-					writeln("Received message type CONFIRMED from id ", msg.srcId, ", Floor ", msg.floor);
+					/*TODO: Handle completed orders, send to watchdog handler*/
+					writeln("Received message type COMPLETED from id ", msg.srcId, ", Floor ", msg.floor);
 					handle_completed_command(msg);
 					break;
 				default:
@@ -102,17 +102,14 @@ OrderAuction get_auction (CallButton order) {
 
 void auction_watchdog(CallButton order) {
 	writeln("  auction watchdog started");
-	bool was_interrupted = false;
 	receiveTimeout( (1000*2).msecs, // 2-second timeout
 		(AuctionCompleteMsg msg) {
 			writeln("  auction watchdog killed");
-			was_interrupted = true;
+			return;
 		},
 	);
-	if (was_interrupted) {
-		//writeln("  auction watchdog triggered: ");
-		ownerTid.send(BidTimeoutMsg(order));
-	}
+	writeln("  auction watchdog triggered: ");
+	ownerTid.send(BidTimeoutMsg(order));
 }
 
 void handle_new_auction(Udp_msg msg) {
@@ -123,7 +120,7 @@ void handle_new_auction(Udp_msg msg) {
 	if (auction !is null) {
 		writeln("  auction already running. Ignoring...");
 		order.floor=-1;
-		return order;
+		return;
 	}
 	writeln("  no auction for order; creating new...");
 	// init auction
@@ -149,7 +146,6 @@ void handle_new_auction(Udp_msg msg) {
 	udp_send(bid_msg);
 
 	check_bidding_complete(order);
-	return order;
 }
 
 void handle_bid(Udp_msg msg) {
@@ -174,7 +170,9 @@ void check_bidding_complete(CallButton order) {
 	writeln("  checking if bidding is complete. peer_count=" ~ to!string(peer_count) ~ ", bid_count=" ~ to!string(auction.bid_count));
 	if (auction.bid_count >= peer_count) {
 		auction.timeout_thread.send(AuctionCompleteMsg());
-		complete_auction(order);
+		try{
+			complete_auction(order);
+		} catch(Exception e ){ writeln("Race condition");}
 	}
 }
 
@@ -192,7 +190,6 @@ void complete_auction(CallButton order) {
 void handle_completed_command(Udp_msg msg) {
 	writeln("  handling COMPLETED order");
 	CallButton order = udp_msg_to_call(msg);
-	writeln("  bluh!");
 	OrderAuction auction = get_auction(order);
 
 	if (auction is null) {
