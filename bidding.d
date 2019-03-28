@@ -38,6 +38,8 @@ struct AuctionCompleteMsg {}
 
 int calculate_own_cost(CallButton order) {
 	// TODO: implement
+	import std.random;
+	current_floor = uniform(1, 1000);
 	return current_floor;
 }
 
@@ -57,10 +59,10 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
 				switch(msg.msgtype) {
 				case 'e':
 					if (msg.new_order) {
-						writeln("Received NEW message of type EXTERNAL from id ", msg.srcId);
+						writeln("Received NEW message of type EXTERNAL from id ", msg.srcId, " Floor ", msg.floor);
 						handle_new_auction(msg);
 					} else {
-						writeln("Received BID message from id ", msg.srcId);
+						writeln("Received BID message from id ", msg.srcId, ", Floor ", msg.floor, ", Bid ", msg.bid);
 						handle_bid(msg);
 					}
 					break;
@@ -71,7 +73,7 @@ void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thre
 					break;
 				case 'c':
 					/*TODO: Handle confirmed orders, send to watchdog handler*/
-					writeln("Received message type CONFIRMED from id ", msg.srcId);
+					writeln("Received message type CONFIRMED from id ", msg.srcId, ", Floor ", msg.floor);
 					handle_completed_command(msg);
 					break;
 				default:
@@ -101,13 +103,13 @@ OrderAuction get_auction (CallButton order) {
 void auction_watchdog(CallButton order) {
 	writeln("  auction watchdog started");
 	bool was_interrupted = false;
-	receiveTimeout( (1000*1).msecs, // 1-second timeout
+	receiveTimeout( (1000*2).msecs, // 1-second timeout
 		(AuctionCompleteMsg msg) {
 			writeln("  auction watchdog killed");
 			was_interrupted = true;
 		},
 	);
-	if (was_interrupted) {
+	if (!was_interrupted) {
 		writeln("  auction watchdog triggered");
 		ownerTid.send(BidTimeoutMsg(order));
 	}
@@ -125,9 +127,11 @@ void handle_new_auction(Udp_msg msg) {
 	writeln("  no auction for order; creating new...");
 	// init auction
 	auction = new OrderAuction();
-	auction.our_bid = calculate_own_cost(order);
+	auto our_bid = calculate_own_cost(order);
+	auction.our_bid = our_bid;
 	auction.bid_count = 1;
 	auction.this_elevator_is_winning = true;
+
 	// setup auction timeout
 	writeln("  spawning watchdog");
 	auction.timeout_thread = spawn(&auction_watchdog, order);
@@ -135,6 +139,14 @@ void handle_new_auction(Udp_msg msg) {
 	// add to auction list
 	writeln("  adding auction to auction list");
 	auctions[order] = auction;
+
+	// get network thread and send, dont use that send function
+	Udp_msg bid_msg = msg;
+	bid_msg.bid = our_bid;
+	bid_msg.msgtype = 'e';
+	bid_msg.new_order = 0;
+	udp_send(bid_msg);
+
 	check_bidding_complete(order);
 }
 
@@ -144,6 +156,9 @@ void handle_bid(Udp_msg msg) {
 	OrderAuction auction = get_auction(order);
 	if (auction is null) {
 		return;
+	}
+	if(msg.srcId != id()){
+		auction.bid_count += 1;
 	}
 	// Check bid against ours
 	if (auction.our_bid > msg.bid) {
