@@ -5,12 +5,14 @@ import
 	std.datetime,
 	elevio,
 	network,
-	network_peers;
+	network_peers,
+	main;
 
 private __gshared int current_floor;
 private __gshared Dirn current_direction;
 private __gshared OrderAuction[CallButton] auctions;
 private __gshared int peer_count;
+private __gshared Tid[ThreadName] threads;
 private __gshared Tid order_list_tid;
 
 /*Move this to Orders.d (?)*/
@@ -18,7 +20,6 @@ struct State_vector {
 	int floor;
 	Dirn dir;
 }
-
 
 class OrderAuction {
 	int our_bid;
@@ -41,6 +42,11 @@ int calculate_own_cost(CallButton order) {
 }
 
 void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thread) {
+	// Wait for thread list
+	Tid[ThreadName] threads;
+	receive((shared(Tid[ThreadName]) t) {threads = cast(Tid[ThreadName])t;});
+	writeln("List received! " ~ to!string(threads));
+
 	current_floor = current_floor;
 	current_direction = current_direction;
 	order_list_tid = order_list_thread;
@@ -169,7 +175,14 @@ void complete_auction(CallButton order) {
 void handle_completed_command(Udp_msg msg) {
 	writeln("  handling COMPLETED order");
 	CallButton order = udp_msg_to_call(msg);
-	get_auction(order).timeout_thread.send(OrderConfirmedMsg());
+	writeln("  bluh!");
+	OrderAuction auction = get_auction(order);
+
+	if (auction is null) {
+		writeln("  not auctioned order. Ignoring...");
+		return;
+	}
+	auction.timeout_thread.send(OrderConfirmedMsg());
 	cleanup_auction(order);
 }
 
