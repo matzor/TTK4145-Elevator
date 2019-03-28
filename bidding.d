@@ -174,6 +174,10 @@ void handle_bid(Udp_msg msg) {
 	// Look up in auction list
 	CallButton order = udp_msg_to_call(msg);
 	OrderAuction auction = get_auction(order);
+	if (auction is null) {
+		writeln("  no auction to handle bid for");
+		return;
+	}
 	import std.algorithm;
 	if( !(canFind(auction.received_bid_ids, msg.srcId)) ){	
 		auction.received_bid_ids ~=msg.srcId;
@@ -193,6 +197,10 @@ void handle_bid(Udp_msg msg) {
 
 void check_bidding_complete(CallButton order) {
 	OrderAuction auction = get_auction(order);
+	if (auction is null) {
+		writeln("  cannot check bidding complete; no auction");
+		return;
+	}
 	writeln("  checking if bidding is complete. peer_count=" ~ to!string(peer_count) ~ ", bid_count=" ~ to!string(auction.bid_count));
 	if (auction.bid_count >= peer_count) {
 		auction.timeout_thread.send(AuctionCompleteMsg());
@@ -204,6 +212,10 @@ void check_bidding_complete(CallButton order) {
 
 void complete_auction(CallButton order) {
 	OrderAuction auction = get_auction(order);
+	if (auction is null) {
+		writeln("  auction already dead");
+		return;
+	}
 	// Register order if auction was won
 	if (auction.this_elevator_is_winning) {
 		writeln("  THIS ELEVATOR WON!!");
@@ -240,7 +252,7 @@ void order_watchdog(CallButton order, int timeout_sec) {
 	);
 	if (is_terminated == false){
 		order_list_tid.send(order);
-		writeln("Order watchdog sent order to order_list");
+		writeln("  Releasing the HOUNDS on call " ~ to!string(order));
 	}
 }
 
