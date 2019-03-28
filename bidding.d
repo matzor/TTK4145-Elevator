@@ -49,10 +49,10 @@ int calculate_own_cost(CallButton order) {
 	else if (order.call == CallButton.Call.hallDown){order_dir = Dirn.down;}
 	else order_dir = Dirn.stop;
 
-	if(states.dir != order_dir){
-		own_cost += 20;
-	}
-	own_cost+=2*delta_floor;
+	//if(states.dir != order_dir){
+	//	own_cost += 10;
+	//}
+	own_cost+=3*delta_floor;
 	own_cost+=id()%3;
 
 	if((states.dir == Dirn.stop) && (delta_floor == 0)){own_cost = 0;}
