@@ -44,8 +44,8 @@ class OrderList {
 		this(int floor, CallButton.Call call) {
 			this.floor = floor;
 			this.call = call;
-			this.order_here=0;
-			this.cab_here=0;
+			this.order_here = 0;
+			this.cab_here = 0;
 		}
 		override string toString() {
 			return ("Floor: " ~ to!string(this.floor) ~ ", dir: " ~ to!string(this.call) ~ ", order: " ~ to!string(this.order_here) ~ ", cab: " ~ to!string(this.cab_here));
@@ -55,10 +55,10 @@ class OrderList {
 	public Order next_stop;
 	private Order null_order;
 
-	private Order get_order(int floor, CallButton.Call call) {
+	private Order get_order (int floor, CallButton.Call call) {
 		Order iter = next_stop;
 		do {
-			if (floor==iter.floor) {
+			if (floor == iter.floor) {
 				if (call == CallButton.Call.cab) return iter;
 				if (call == iter.call) return iter;
 			}
@@ -79,7 +79,7 @@ class OrderList {
 		return null_order;
 	}
 
-	bool set_order(int floor, CallButton.Call call) {
+	bool set_order (int floor, CallButton.Call call) {
 		Order order = get_order(floor, call);
 		if(call == CallButton.Call.cab) {
 			if(order.cab_here){return 0;}
@@ -111,21 +111,21 @@ class OrderList {
 		threads[ThreadName.network].send(Finished_order(btn));
 	}
 
-	this(int numfloors,int start_floor) {
+	this (int numfloors,int start_floor) {
 		o_list = order_queue_init(numfloors);
-		next_stop=o_list[start_floor];
+		next_stop = o_list[start_floor];
 		null_order = new Order(-1, CallButton.Call.cab);
 	}
-	private Order[] order_queue_init(int number_of_floors) {
+	private Order[] order_queue_init (int number_of_floors) {
 		Order[] queue;
 
 		foreach(int floor; 0 .. number_of_floors) {
-			queue~=new Order(floor, CallButton.Call.hallUp);
+			queue ~= new Order(floor, CallButton.Call.hallUp);
 		}
-		for(int floor=number_of_floors-1; floor>=0; floor-- ) {
-	 		queue~=new Order(floor, CallButton.Call.hallDown);
+		for(int floor = number_of_floors - 1; floor >= 0; floor--) {
+	 		queue ~= new Order(floor, CallButton.Call.hallDown);
 		}
-		for (int i=0; i<queue.length-1; i++) {
+		for (int i = 0; i < queue.length - 1; i++) {
 			queue[i].next = queue[i+1];
 		}
 		queue.back.next = queue[0];
@@ -134,15 +134,14 @@ class OrderList {
 	void printout() {
 		Order iter = next_stop;
 		do {
-			writeln("Floor: ", iter.floor, ", dir: ", iter.call,", order: ", iter.order_here, ", cab: ", iter.cab_here);
-
+			writeln(iter);
 			iter = iter.next;
 		} while (iter != next_stop);
 	}
 
 }
 
-CallButton.Call dirn_to_call(Dirn dir) {
+CallButton.Call dirn_to_call (Dirn dir) {
 	if(dir == Dirn.up) {
 		return CallButton.Call.hallUp;
 	} else {
@@ -158,8 +157,8 @@ void run_order_list (int numfloors, int startfloor) {
 
 	auto orderlist = new OrderList(numfloors, startfloor);
 	init_log(numfloors);
-	int[] log=read_log();
-	for (int i=0; i < numfloors; i++) {
+	int[] log = read_log();
+	for (int i = 0; i < numfloors; i++) {
 		for (int j = 0; j < 3; j++) {
 			if(log[numfloors*j + i]) {
 				switch(j){
@@ -192,6 +191,7 @@ void run_order_list (int numfloors, int startfloor) {
 				OrderList.Order completed_order = orderlist.get_next_active_order();
 				if (completed_order.floor != t) {
 					writeln("eww disgusting");
+					movement_thread.send(TargetFloor(orderlist.get_next_active_order().floor));
 					return;
 				}
 				writeln("Order completed: " ~ to!string(completed_order));

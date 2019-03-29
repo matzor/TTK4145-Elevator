@@ -12,8 +12,9 @@ private __gshared   int           door_wait_ms          = 1000;
 private __gshared   Duration      door_wait;
 private __gshared   int           watchdog_timer_ms     = 30000;
 private __gshared   Duration      watchdog_timer;
+bool door_open = false;
 
-enum ThreadName{
+enum ThreadName {
 	logger,
 	movement,
 	network,
@@ -26,7 +27,9 @@ struct ElevatorControllerLog {
 	alias message this;
 }
 
-void config_init(){
+struct DoorClosedMessage {}
+
+void config_init() {
 	import std.getopt, std.file, std.string, std.conv;
 	string[] configContents;
 	try {
@@ -36,10 +39,8 @@ void config_init(){
 				"elev_num_floors",          &num_floors,
 				"elev_door_wait",           &door_wait_ms,
 				"elev_watchdog_timer",      &watchdog_timer_ms,
-			  );
-
+		);
 		writeln("Elevator config file read successfully");
-
 	} catch(Exception e) {
 		writeln("Unable to load elevator config:\n", e.msg);
 		writeln("Using failsafe default config");
@@ -48,10 +49,18 @@ void config_init(){
 	watchdog_timer = watchdog_timer_ms.msecs;
 }
 
-void door_open(){
+void run_door_cycle() {
 	doorLight(1);
 	Thread.sleep(door_wait);
 	doorLight(0);
+	ownerTid.send(DoorClosedMessage());
+}
+
+void open_door() {
+	if (!door_open) {
+		door_open = true;
+		spawn(&run_door_cycle);
+	}
 }
 
 void run_movement (int num_floors) {
@@ -66,6 +75,7 @@ void run_movement (int num_floors) {
 	void log(string msg) {
 		threads[ThreadName.logger].send(ElevatorControllerLog(msg));
 	}
+
 	spawn(&pollFloorSensor, thisTid);
 	spawn(&pollObstruction, thisTid);
 	spawn(&pollStopButton,  thisTid);
@@ -74,33 +84,40 @@ void run_movement (int num_floors) {
 	int target_floor = -1;
 	int current_floor = -1;
 	Dirn current_dir = Dirn.stop;
-	int start_at_floor=1;
+	void safe_activate_motor () {
+		if (!door_open) motorDirection(current_dir);
+		else motorDirection(Dirn.stop);
+	}
+
+	int start_at_floor = 1;
 	receiveTimeout(3000.msecs,
-		(FloorSensor f){
+		(FloorSensor f) {
 			start_at_floor = f;
 		},
 	);
-	if(!start_at_floor){
-		motorDirection(Dirn.up);
-	} else{
-		motorDirection(Dirn.down);
+	if(!start_at_floor) {
+		current_dir = Dirn.up;
+	} else {
+		current_dir = Dirn.down;
 	}
-	while(true){
+	safe_activate_motor();
+
+	while(true) {
 		receive(
-			(TargetFloor new_target){
+			(TargetFloor new_target) {
 				if(new_target > -1) {
 					target_floor = new_target;
-					log("Got new order to floor "~to!string(target_floor));
+					log("Got new order to floor " ~ to!string(target_floor));
 					if (target_floor > current_floor) {
-						motorDirection(Dirn.up);
 						current_dir = Dirn.up;
+						safe_activate_motor();
 						order_list_thread.send(MotorDirUpdate(Dirn.up));
 					} else if (target_floor < current_floor) {
-						motorDirection(Dirn.down);
 						current_dir = Dirn.down;
+						safe_activate_motor();
 						order_list_thread.send(MotorDirUpdate(Dirn.down));
 					} else if (current_dir == Dirn.stop) {
-						door_open();
+						open_door();
 						order_list_thread.send(TargetFloorReached(current_floor));
 						writeln("Already on target floor");
 					}
@@ -121,14 +138,18 @@ void run_movement (int num_floors) {
 				if (
 					current_floor == target_floor
 					|| current_floor == 0
-					|| current_floor == num_floors-1
+					|| current_floor == num_floors - 1
 				){
-					motorDirection(Dirn.stop);
 					current_dir = Dirn.stop;
+					safe_activate_motor();
 					order_list_thread.send(TargetFloorReached(current_floor));
-					door_open();
+					open_door();
 					writeln("This is the target floor; stopping.");
 				}
+			},
+			(DoorClosedMessage m) {
+				door_open = false;
+				safe_activate_motor();
 			},
 			(Obstruction a) {
 				writeln("CFloor: ", current_floor);
@@ -137,7 +158,8 @@ void run_movement (int num_floors) {
 			},
 			(StopButton stop_btn) {
 				if (stop_btn) {
-					motorDirection(Dirn.stop);
+					current_dir = Dirn.stop;
+					safe_activate_motor();
 					log("Stop button pressed; stopping.");
 				}
 			},
