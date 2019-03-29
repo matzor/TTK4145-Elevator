@@ -66,7 +66,8 @@ int calculate_own_cost(CallButton order) {
 	return own_cost;
 }
 
-void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thread) {
+void bidding_main(int current_floor, Dirn current_direction, Tid order_list_thread, int watchdog_timer) {
+	order_dog_timer = watchdog_timer;
 	// Wait for thread list
 	Tid[ThreadName] threads;
 	receive((shared(Tid[ThreadName]) t) {threads = cast(Tid[ThreadName])t;});

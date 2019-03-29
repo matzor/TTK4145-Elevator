@@ -10,7 +10,7 @@ import  elevio,
 private __gshared   int           num_floors            = 4;
 private __gshared   int           door_wait_ms          = 1000;
 private __gshared   Duration      door_wait;
-private __gshared   int           watchdog_timer_ms     = 30000;
+private __gshared   int           watchdog_timer_s     = 30;
 private __gshared   Duration      watchdog_timer;
 bool door_open = false;
 
@@ -38,7 +38,7 @@ void config_init() {
 				std.getopt.config.passThrough,
 				"elev_num_floors",          &num_floors,
 				"elev_door_wait",           &door_wait_ms,
-				"elev_watchdog_timer",      &watchdog_timer_ms,
+				"elev_watchdog_timer",      &watchdog_timer_s,
 		);
 		writeln("Elevator config file read successfully");
 	} catch(Exception e) {
@@ -46,7 +46,7 @@ void config_init() {
 		writeln("Using failsafe default config");
 	}
 	door_wait = door_wait_ms.msecs;
-	watchdog_timer = watchdog_timer_ms.msecs;
+	watchdog_timer = watchdog_timer_s.msecs;
 }
 
 void run_door_cycle() {
@@ -177,7 +177,7 @@ void main(){
 	threads[ThreadName.logger] = thisTid;
 	threads[ThreadName.movement] = spawn(&run_movement, num_floors);
 	threads[ThreadName.order_list] = spawn(&run_order_list, num_floors, num_floors-1);
-	threads[ThreadName.bidding] = spawn(&bidding_main, 0, Dirn.stop, threads[ThreadName.order_list]);
+	threads[ThreadName.bidding] = spawn(&bidding_main, 0, Dirn.stop, threads[ThreadName.order_list], watchdog_timer_s);
 	threads[ThreadName.network] = spawn(&network_main);
 	writeln("But also here, eh?");
 
