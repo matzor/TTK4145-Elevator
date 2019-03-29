@@ -101,7 +101,7 @@ void run_movement (int num_floors) {
 						order_list_thread.send(MotorDirUpdate(Dirn.down));
 					} else if (current_dir == Dirn.stop) {
 						door_open();
-						order_list_thread.send(AlreadyOnFloor(current_floor));
+						order_list_thread.send(TargetFloorReached(current_floor));
 						writeln("Already on target floor");
 					}
 				} else {
@@ -116,6 +116,7 @@ void run_movement (int num_floors) {
 			(FloorSensor floor_sensor) {
 				current_floor = floor_sensor;
                 floorIndicator(current_floor);
+				order_list_thread.send(FloorSensor(current_floor));
 				writeln("Floor sensor detected floor " ~ to!string(current_floor) ~ ".");
 				if (
 					current_floor == target_floor
@@ -124,11 +125,10 @@ void run_movement (int num_floors) {
 				){
 					motorDirection(Dirn.stop);
 					current_dir = Dirn.stop;
+					order_list_thread.send(TargetFloorReached(current_floor));
 					door_open();
 					writeln("This is the target floor; stopping.");
-					order_list_thread.send(FloorSensor(current_floor));
 				}
-
 			},
 			(Obstruction a) {
 				writeln("CFloor: ", current_floor);

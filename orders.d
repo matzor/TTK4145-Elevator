@@ -29,6 +29,11 @@ struct AlreadyOnFloor {
 	alias floor this;
 }
 
+struct TargetFloorReached {
+	int floor;
+	alias floor this;
+}
+
 class OrderList {
 	public class Order {
 		public int floor;
@@ -42,9 +47,13 @@ class OrderList {
 			this.order_here=0;
 			this.cab_here=0;
 		}
+		override string toString() {
+			return ("Floor: " ~ to!string(this.floor) ~ ", dir: " ~ to!string(this.call) ~ ", order: " ~ to!string(this.order_here) ~ ", cab: " ~ to!string(this.cab_here));
+		}
 	}
 	private Order[] o_list;
-	private Order next_stop;
+	public Order next_stop;
+	private Order null_order;
 
 	private Order get_order(int floor, CallButton.Call call) {
 		Order iter = next_stop;
@@ -58,15 +67,16 @@ class OrderList {
 		return null;
 	}
 
-	int get_next_order_floor() {
+
+	Order get_next_active_order() {
 		Order iter = next_stop;
 		do {
 			if (iter.order_here || iter.cab_here) {
-				return iter.floor;
+				return iter;
 			}
 			iter = iter.next;
 		} while (iter != next_stop);
-		return -1;
+		return null_order;
 	}
 
 	bool set_order(int floor, CallButton.Call call) {
@@ -94,7 +104,7 @@ class OrderList {
 		callButtonLight(floor, CallButton.Call.cab, 0);
 		order.cab_here = false;
 		order.order_here = false;
-		next_stop = next_stop.next;
+
 		log_clear_floor(floor, call);
 		log_clear_floor(floor, CallButton.Call.cab);
 
@@ -104,11 +114,12 @@ class OrderList {
 	this(int numfloors,int start_floor) {
 		o_list = order_queue_init(numfloors);
 		next_stop=o_list[start_floor];
+		null_order = new Order(-1, CallButton.Call.cab);
 	}
 	private Order[] order_queue_init(int number_of_floors) {
 		Order[] queue;
 
-		foreach(floor; 0 .. number_of_floors) {
+		foreach(int floor; 0 .. number_of_floors) {
 			queue~=new Order(floor, CallButton.Call.hallUp);
 		}
 		for(int floor=number_of_floors-1; floor>=0; floor-- ) {
@@ -128,6 +139,7 @@ class OrderList {
 			iter = iter.next;
 		} while (iter != next_stop);
 	}
+
 }
 
 CallButton.Call dirn_to_call(Dirn dir) {
@@ -173,40 +185,35 @@ void run_order_list (int numfloors, int startfloor) {
 		receive(
 			(FloorSensor f) {
 				floor = f;
-				CallButton.Call dir_to_calldir = dirn_to_call(motor_dir);
-				CallButton btn = CallButton(floor, dir_to_calldir);
-				if(
-					orderlist.get_next_order_floor == floor
-					|| floor == 0
-					|| floor == numfloors - 1
-				){
-					if(dir_to_calldir==CallButton.Call.hallUp) {
-						dir_to_calldir=CallButton.Call.hallDown;
-					} else {
-						dir_to_calldir=CallButton.Call.hallUp;
-					}
-					orderlist.finish_order(btn);
+				CallButton.Call this_call_dir = dirn_to_call(motor_dir);
+				orderlist.next_stop = orderlist.get_order(floor, this_call_dir);
+			},
+			(TargetFloorReached t) {
+				OrderList.Order completed_order = orderlist.get_next_active_order();
+				if (completed_order.floor != t) {
+					writeln("eww disgusting");
+					return;
 				}
-				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
+				writeln("Order completed: " ~ to!string(completed_order));
+				orderlist.next_stop = completed_order;
+				orderlist.finish_order(CallButton(completed_order.floor, completed_order.call));
+				movement_thread.send(TargetFloor(orderlist.get_next_active_order().floor));
 			},
 			(MotorDirUpdate m) {
 				motor_dir = m;
+				orderlist.next_stop = orderlist.get_order(floor, dirn_to_call(motor_dir)).next;
 			},
 			(CallButton n) {
-				//if(orderlist.set_order(n.floor, n.call)) {
-					orderlist.set_order(n.floor, n.call);
-					int next_order_floor = orderlist.get_next_order_floor();
-					writeln("target: ", n.floor, " Current: ", floor);
-					if(next_order_floor != -1) {
-						floor=-1;
-					}
-					movement_thread.send(TargetFloor(next_order_floor));
-				//}
+				orderlist.set_order(n.floor, n.call);
+				int next_order_floor = orderlist.get_next_active_order().floor;
+				writeln("target: ", n.floor, " Current: ", floor);
+				movement_thread.send(TargetFloor(next_order_floor));
+				writeln("sent yay");
 			},
 			(AlreadyOnFloor a) {
 				orderlist.finish_order(CallButton(a, CallButton.Call.hallUp));
 				orderlist.finish_order(CallButton(a, CallButton.Call.hallDown));
-				movement_thread.send(TargetFloor(orderlist.get_next_order_floor()));
+				movement_thread.send(TargetFloor(orderlist.get_next_active_order().floor));
 			},
 			(Obstruction a) {
 				orderlist.printout();
