@@ -15,7 +15,6 @@ private __gshared Tid[ThreadName] threads;
 private __gshared Tid order_list_tid;
 private __gshared int order_dog_timer = 30;
 
-/*Move this to Orders.d (?)*/
 struct State_vector {
 	int floor;
 	Dirn dir;
@@ -52,12 +51,8 @@ int calculate_own_cost(CallButton order) {
 	else if (order.call == CallButton.Call.hallDown){order_dir = Dirn.down;}
 	else order_dir = Dirn.stop;
 
-	//if(states.dir != order_dir){
-	//	own_cost += 10;
-	//}
-
 	if((states.dir == Dirn.stop) && (delta_floor == 0)){own_cost = 0;}
-	//writeln("----------------CALCULATED OWN COST: ", own_cost);
+	//writeln("CALCULATED OWN COST: ", own_cost);
 
 	// prevent two elevators from bidding the same
 	const int max_id = 256;

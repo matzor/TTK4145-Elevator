@@ -50,7 +50,6 @@ void network_init() {
 	interval = interval_ms.msecs;
 
 	try {
-		//_id should be specified in config file, don't leave at default please
 		if(id_str == "default") {
 			import std.random;
 			_id = to!ubyte(uniform(1, 255));
@@ -66,7 +65,7 @@ void network_init() {
 struct Udp_msg {
 	ubyte     srcId     = 0;
 	ubyte     dstId     = 255;  //255: broadcast
-	char      msgtype   = 0;    //'i' || 'e' || 'c'  (internal / external / confirmed)
+	char      msgtype   = 0;    //'i' || 'e' || 'c'  (internal / external / completed)
 	int       floor     = 0;    //floor of order
 	int       bid       = 0;    //bid for order
 	ubyte     fines     = 0;    //"targetID"
